@@ -1,0 +1,13 @@
+services:
+  support:
+    build: .
+    container_name: miliac-support
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - DATA_DIR=/data
+      - CLIENT_DIST=/app/client/dist
+    volumes:
+      - ./data:/data
+    ports:
+      - "127.0.0.1:4000:4000"

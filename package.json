@@ -1,0 +1,20 @@
+{
+  "name": "miliac-support",
+  "version": "1.0.0",
+  "private": true,
+  "description": "سامانه تیکتینگ آنلاین میلیاک — support.softmiliac.com",
+  "workspaces": ["server", "client"],
+  "scripts": {
+    "install:all": "npm install --prefix server && npm install --prefix client",
+    "dev": "concurrently -n server,client -c blue,green \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+    "dev:server": "npm run dev --prefix server",
+    "dev:client": "npm run dev --prefix client",
+    "build": "npm run build --prefix client",
+    "start": "NODE_ENV=production npm start --prefix server",
+    "seed": "npm run seed --prefix server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  },
+  "engines": { "node": ">=20" }
+}
