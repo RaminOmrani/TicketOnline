@@ -110,7 +110,7 @@ nano .env        # JWT_SECRET (openssl rand -hex 48)، APP_URL، CORS_ORIGINS، 
 docker compose up -d --build
 ```
 
-سرویس روی `127.0.0.1:4000` بالا می‌آید و داده‌ها در پوشه `./data` می‌مانند. سپس Nginx را به‌عنوان reverse proxy با SSL جلوی آن قرار دهید:
+سرویس روی `127.0.0.1:4000` بالا می‌آید و داده‌ها در پوشه `./data` می‌مانند (این پوشه باید متعلق به UID 1000 باشد: `chown -R 1000:1000 data`). سپس Nginx را به‌عنوان reverse proxy با SSL جلوی آن قرار دهید:
 
 ```bash
 sudo cp deploy/nginx/support.softmiliac.com.conf /etc/nginx/sites-available/support.softmiliac.com

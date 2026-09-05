@@ -62,7 +62,7 @@ EOF
 else
   ADMIN_PASSWORD="(بدون تغییر — فایل .env از قبل وجود داشت)"
 fi
-mkdir -p data
+mkdir -p data && chown -R 1000:1000 data   # کاربر node داخل کانتینر
 
 echo "==> [4/6] ساخت و اجرای سرویس (چند دقیقه طول می‌کشد)"
 docker compose up -d --build
