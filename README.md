@@ -94,7 +94,15 @@ npm run dev --prefix client        # http://localhost:5173  (UI با proxy به 
 
 ## استقرار روی support.softmiliac.com
 
-### روش ۱ — Docker (پیشنهادی)
+### روش ۰ — نصب یک‌مرحله‌ای (اوبونتو)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/RaminOmrani/TicketOnline/claude/ticketing-system-softmiliac-2k9y92/deploy/install.sh | sudo bash
+```
+
+داکر، Nginx و SSL را نصب می‌کند، `.env` را با رمز تصادفی می‌سازد، سرویس را اجرا و کرون پشتیبان‌گیری را ثبت می‌کند. در پایان رمز مدیر را نمایش می‌دهد.
+
+### روش ۱ — Docker (دستی)
 
 ```bash
 cp .env.example .env
