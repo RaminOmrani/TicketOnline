@@ -14,7 +14,7 @@ if [[ $EUID -ne 0 ]]; then echo "این اسکریپت باید با sudo اجر
 echo "==> [1/6] نصب پیش‌نیازها"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
-apt-get install -y ca-certificates curl git nginx certbot python3-certbot-nginx openssl
+apt-get install -y ca-certificates curl git nginx certbot python3-certbot-nginx openssl cron
 if ! command -v docker >/dev/null; then
   curl -fsSL https://get.docker.com | sh
 fi
@@ -112,7 +112,9 @@ else
 fi
 
 # پشتیبان‌گیری روزانه
-( crontab -l 2>/dev/null | grep -v "deploy/backup.sh" ; echo "0 3 * * * $APP_DIR/deploy/backup.sh >/dev/null 2>&1" ) | crontab -
+if command -v crontab >/dev/null; then
+  ( crontab -l 2>/dev/null | grep -v "deploy/backup.sh" ; echo "0 3 * * * $APP_DIR/deploy/backup.sh >/dev/null 2>&1" ) | crontab - || true
+fi
 
 sleep 3
 if curl -fsS http://127.0.0.1:4000/api/public/health >/dev/null; then STATUS="در حال اجرا ✅"; else STATUS="اجرا نشد ❌ (docker compose logs را ببینید)"; fi
