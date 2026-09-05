@@ -77,7 +77,9 @@ export default function AdminSettings() {
           <Field label="نام شرکت (فارسی)"><input className="input" value={s.company_name} onChange={(e) => set('company_name', e.target.value)} /></Field>
           <Field label="نام شرکت (انگلیسی)"><input className="input ltr" value={s.company_name_en || ''} onChange={(e) => set('company_name_en', e.target.value)} dir="ltr" /></Field>
           <Field label="عنوان سایت"><input className="input" value={s.site_title} onChange={(e) => set('site_title', e.target.value)} /></Field>
-          <Field label="شعار / توضیح کوتاه"><input className="input" value={s.tagline || ''} onChange={(e) => set('tagline', e.target.value)} /></Field>
+          <Field label="توضیح کوتاه (زیر عنوان)"><input className="input" value={s.tagline || ''} onChange={(e) => set('tagline', e.target.value)} /></Field>
+          <Field label="شعار"><input className="input" value={s.slogan || ''} onChange={(e) => set('slogan', e.target.value)} /></Field>
+          <Field label="آدرس"><input className="input" value={s.address || ''} onChange={(e) => set('address', e.target.value)} /></Field>
           <Field label="رنگ برند"><div className="flex items-center gap-2"><input type="color" value={s.brand_color} onChange={(e) => set('brand_color', e.target.value)} className="h-10 w-14 cursor-pointer rounded-lg border border-slate-200" /><input className="input ltr flex-1" value={s.brand_color} onChange={(e) => set('brand_color', e.target.value)} dir="ltr" /></div></Field>
           <Field label="وب‌سایت"><input className="input ltr" value={s.website || ''} onChange={(e) => set('website', e.target.value)} dir="ltr" /></Field>
           <Field label="ایمیل پشتیبانی"><input className="input ltr" value={s.support_email || ''} onChange={(e) => set('support_email', e.target.value)} dir="ltr" /></Field>

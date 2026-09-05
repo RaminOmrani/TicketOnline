@@ -1,7 +1,7 @@
 services:
   support:
     build: .
-    container_name: miliac-support
+    container_name: millionaire-support
     restart: unless-stopped
     env_file: .env
     environment:

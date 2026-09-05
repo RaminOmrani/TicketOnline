@@ -149,7 +149,7 @@ router.post('/departments', validate(deptSchema), (req, res) => {
   if (db.prepare('SELECT id FROM departments WHERE slug = ?').get(slug)) slug = `${slug}-${Date.now().toString(36)}`;
   const info = db
     .prepare('INSERT INTO departments (name, slug, description, icon, color, is_active, sort_order, sla_first_response_minutes, sla_resolve_minutes, auto_assign) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-    .run(b.name, slug, b.description, b.icon || 'life-buoy', b.color || '#2563eb', b.is_active === false ? 0 : 1, b.sort_order ?? 0, b.sla_first_response_minutes ?? 240, b.sla_resolve_minutes ?? 2880, b.auto_assign === false ? 0 : 1);
+    .run(b.name, slug, b.description, b.icon || 'life-buoy', b.color || '#A31A1A', b.is_active === false ? 0 : 1, b.sort_order ?? 0, b.sla_first_response_minutes ?? 240, b.sla_resolve_minutes ?? 2880, b.auto_assign === false ? 0 : 1);
   const id = info.lastInsertRowid;
   if (b.agent_ids) {
     const ins = db.prepare('INSERT OR IGNORE INTO agent_departments (user_id, department_id) VALUES (?, ?)');
@@ -261,7 +261,7 @@ router.post('/users', validate(userSchema), asyncHandler(async (req, res) => {
   }
   db.prepare('INSERT INTO audit_log (actor_id, action, target, ip) VALUES (?, ?, ?, ?)').run(req.user.id, 'user_create', `user:${id}`, req.ip);
   if (b.send_welcome !== false && b.email) {
-    await sendEmail(b.email, 'حساب کاربری شما در مرکز پشتیبانی میلیاک', emailLayout({ title: `${b.name} عزیز، حساب شما ایجاد شد`, intro: 'اطلاعات ورود شما به سامانه پشتیبانی:', body: `نام کاربری: ${b.email || mobile}\nرمز عبور: ${password}`, cta: 'ورود به سامانه', ctaUrl: `${config.appUrl}/login`, footer: 'توصیه می‌کنیم پس از ورود، رمز عبور خود را تغییر دهید.' }));
+    await sendEmail(b.email, 'حساب کاربری شما در مرکز پشتیبانی میلیونر', emailLayout({ title: `${b.name} عزیز، حساب شما ایجاد شد`, intro: 'اطلاعات ورود شما به سامانه پشتیبانی:', body: `نام کاربری: ${b.email || mobile}\nرمز عبور: ${password}`, cta: 'ورود به سامانه', ctaUrl: `${config.appUrl}/login`, footer: 'توصیه می‌کنیم پس از ورود، رمز عبور خود را تغییر دهید.' }));
   }
   res.status(201).json({ user: sanitizeUser(db.prepare('SELECT * FROM users WHERE id = ?').get(id), { full: true }), generated_password: b.password ? undefined : password });
 }));
@@ -334,6 +334,8 @@ const settingsSchema = z.object({
   company_name_en: optStr(80).optional(),
   site_title: str(1, 120).optional(),
   tagline: optStr(200).optional(),
+  slogan: optStr(120).optional(),
+  address: optStr(300).optional(),
   brand_color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
   support_email: optStr(120).optional(),
   support_phone: optStr(60).optional(),

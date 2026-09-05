@@ -103,12 +103,13 @@ export function applyBrandColor(hex: string) {
   root.style.setProperty('--brand-rgb', hexToRgb(hex).join(' '));
   root.style.setProperty('--brand-dark-rgb', shade(hex, -0.18).join(' '));
   root.style.setProperty('--brand-light-rgb', shade(hex, 0.35).join(' '));
+  root.style.setProperty('--brand-deep-rgb', shade(hex, -0.65).join(' '));
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute('content', hex);
 }
 
 export function avatarColor(id: number | string): string {
-  const palette = ['#2563eb', '#16a34a', '#7c3aed', '#ea580c', '#0891b2', '#db2777', '#ca8a04', '#4f46e5'];
+  const palette = ['#A31A1A', '#6D1212', '#B45309', '#9F1239', '#7C2D12', '#4C0519', '#C2410C', '#57534E'];
   const n = typeof id === 'number' ? id : Array.from(String(id)).reduce((a, c) => a + c.charCodeAt(0), 0);
   return palette[n % palette.length];
 }

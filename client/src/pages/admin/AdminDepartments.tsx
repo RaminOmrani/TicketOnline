@@ -11,10 +11,10 @@ import { DeptIcon, DEPT_ICONS } from '@/components/tickets/badges';
 import type { Department, User } from '@/lib/types';
 
 const ICONS = DEPT_ICONS;
-const COLORS = ['#2563eb', '#16a34a', '#7c3aed', '#ea580c', '#0891b2', '#db2777', '#ca8a04', '#4f46e5', '#0f766e', '#be123c'];
+const COLORS = ['#A31A1A', '#6D1212', '#9F1239', '#C2410C', '#B45309', '#8A1C1C', '#7c3aed', '#0f766e', '#2563eb', '#334155'];
 
 type Form = { id?: number; name: string; description: string; icon: string; color: string; is_active: boolean; sort_order: number; sla_first_response_minutes: number; sla_resolve_minutes: number; auto_assign: boolean; agent_ids: number[] };
-const empty: Form = { name: '', description: '', icon: 'life-buoy', color: '#2563eb', is_active: true, sort_order: 0, sla_first_response_minutes: 240, sla_resolve_minutes: 2880, auto_assign: true, agent_ids: [] };
+const empty: Form = { name: '', description: '', icon: 'life-buoy', color: '#A31A1A', is_active: true, sort_order: 0, sla_first_response_minutes: 240, sla_resolve_minutes: 2880, auto_assign: true, agent_ids: [] };
 
 export default function AdminDepartments() {
   const qc = useQueryClient();
@@ -68,7 +68,7 @@ export default function AdminDepartments() {
                 </div>
               </div>
               <div className="flex gap-1">
-                <button className="btn-icon h-8 w-8" onClick={() => setEdit({ id: d.id, name: d.name, description: d.description || '', icon: d.icon || 'life-buoy', color: d.color || '#2563eb', is_active: !!d.is_active, sort_order: d.sort_order || 0, sla_first_response_minutes: d.sla_first_response_minutes || 240, sla_resolve_minutes: d.sla_resolve_minutes || 2880, auto_assign: !!d.auto_assign, agent_ids: (d.agents || []).map((a) => a.id) })}><Pencil className="h-4 w-4" /></button>
+                <button className="btn-icon h-8 w-8" onClick={() => setEdit({ id: d.id, name: d.name, description: d.description || '', icon: d.icon || 'life-buoy', color: d.color || '#A31A1A', is_active: !!d.is_active, sort_order: d.sort_order || 0, sla_first_response_minutes: d.sla_first_response_minutes || 240, sla_resolve_minutes: d.sla_resolve_minutes || 2880, auto_assign: !!d.auto_assign, agent_ids: (d.agents || []).map((a) => a.id) })}><Pencil className="h-4 w-4" /></button>
                 <button className="btn-icon h-8 w-8 text-rose-500" onClick={() => setDel(d)}><Trash2 className="h-4 w-4" /></button>
               </div>
             </div>

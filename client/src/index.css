@@ -10,9 +10,10 @@
 @tailwind utilities;
 
 :root {
-  --brand-rgb: 37 99 235;
-  --brand-dark-rgb: 29 78 216;
-  --brand-light-rgb: 96 165 250;
+  --brand-rgb: 163 26 26;
+  --brand-dark-rgb: 128 18 18;
+  --brand-light-rgb: 205 84 84;
+  --brand-deep-rgb: 58 11 11;
   color-scheme: light;
 }
 .dark {

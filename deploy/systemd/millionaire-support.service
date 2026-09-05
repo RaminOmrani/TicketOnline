@@ -1,0 +1,17 @@
+# /etc/systemd/system/millionaire-support.service  (نصب بدون داکر)
+[Unit]
+Description=Millionaire Support Ticketing (support.softmiliac.com)
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/var/www/millionaire-support/server
+EnvironmentFile=/var/www/millionaire-support/.env
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node src/index.js
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

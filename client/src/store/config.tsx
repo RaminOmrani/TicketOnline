@@ -5,12 +5,14 @@ import type { PublicConfig } from '@/lib/types';
 
 const fallback: PublicConfig = {
   settings: {
-    company_name: 'میلیاک',
-    company_name_en: 'Miliac',
-    site_title: 'مرکز پشتیبانی میلیاک',
-    tagline: 'پشتیبانی نرم‌افزار حسابداری میلیاک',
+    company_name: 'میلیونر',
+    company_name_en: 'Millionaire',
+    site_title: 'مرکز پشتیبانی میلیونر',
+    tagline: 'پیشگام در حسابداری هوشمند ایران',
+    slogan: 'میلیونر؛ هوشمندتر از همیشه',
+    address: '',
     logo: '',
-    brand_color: '#2563eb',
+    brand_color: '#A31A1A',
     support_email: '',
     support_phone: '',
     website: '',

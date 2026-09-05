@@ -230,7 +230,7 @@ export function createTicket({ customer, actor, subject, departmentId, priority 
       body: body ? body.slice(0, 1000) : '',
       footer: `شماره پیگیری: ${ticket.number}`,
     },
-    sms: `میلیاک: تیکت ${ticket.number} با موضوع «${subject.slice(0, 40)}» ثبت شد. پیگیری: ${config.appUrl}/tickets/${ticket.id}`,
+    sms: `میلیونر: تیکت ${ticket.number} با موضوع «${subject.slice(0, 40)}» ثبت شد. پیگیری: ${config.appUrl}/tickets/${ticket.id}`,
   });
 
   for (const staff of staffForTicket(ticket)) {
@@ -245,7 +245,7 @@ export function createTicket({ customer, actor, subject, departmentId, priority 
         intro: `${customer.name}${customer.company ? ` (${customer.company})` : ''} تیکت جدیدی با اولویت «${PRIORITY_LABELS[priority]}» ثبت کرده است.`,
         body: `${subject}\n\n${body.slice(0, 1000)}`,
       },
-      sms: ticket.assignee_id === staff.id ? `میلیاک: تیکت جدید ${ticket.number} به شما تخصیص یافت.` : null,
+      sms: ticket.assignee_id === staff.id ? `میلیونر: تیکت جدید ${ticket.number} به شما تخصیص یافت.` : null,
     });
   }
   return ticket;
@@ -311,11 +311,11 @@ export function addMessage({ ticket, sender, body = '', type = 'message', attach
         body: preview,
         ticket: updated,
         email: {
-          subject: `[${updated.number}] پاسخ جدید از پشتیبانی میلیاک`,
+          subject: `[${updated.number}] پاسخ جدید از پشتیبانی میلیونر`,
           intro: `${sender.name} به تیکت «${updated.subject}» پاسخ داد:`,
           body: body.slice(0, 1500) || preview,
         },
-        sms: `میلیاک: پاسخ جدید برای تیکت ${updated.number} ثبت شد. ${config.appUrl}/tickets/${updated.id}`,
+        sms: `میلیونر: پاسخ جدید برای تیکت ${updated.number} ثبت شد. ${config.appUrl}/tickets/${updated.id}`,
       });
     } else {
       for (const staff of staffForTicket(updated)) {
@@ -367,7 +367,7 @@ export function changeStatus(ticket, actor, status, extra = {}) {
       body: updated.subject,
       ticket: updated,
       email: status === 'resolved' ? { subject: `[${updated.number}] تیکت شما حل شد`, intro: `تیکت «${updated.subject}» به وضعیت «${label}» تغییر کرد. اگر مشکل برطرف شده، لطفاً به کیفیت پشتیبانی امتیاز دهید؛ در غیر این صورت با ارسال پیام، تیکت مجدداً باز می‌شود.` } : status === 'closed' ? { subject: `[${updated.number}] تیکت بسته شد`, intro: `تیکت «${updated.subject}» بسته شد. در صورت نیاز می‌توانید تیکت جدیدی ثبت کنید.` } : null,
-      sms: status === 'resolved' ? `میلیاک: تیکت ${updated.number} حل شد. لطفاً به پشتیبانی امتیاز دهید.` : null,
+      sms: status === 'resolved' ? `میلیونر: تیکت ${updated.number} حل شد. لطفاً به پشتیبانی امتیاز دهید.` : null,
     });
   } else if (actor && !isStaff(actor)) {
     for (const staff of staffForTicket(updated)) {
@@ -395,7 +395,7 @@ export function assignTicket(ticket, actor, assigneeId) {
       body: updated.subject,
       ticket: updated,
       email: { subject: `[${updated.number}] تیکت به شما تخصیص یافت`, intro: `${actor.name} تیکت «${updated.subject}» را به شما تخصیص داد.` },
-      sms: `میلیاک: تیکت ${updated.number} به شما تخصیص یافت.`,
+      sms: `میلیونر: تیکت ${updated.number} به شما تخصیص یافت.`,
     });
   }
   return updated;

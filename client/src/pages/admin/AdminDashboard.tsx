@@ -60,7 +60,7 @@ export default function AdminDashboard() {
           <ResponsiveContainer width="100%" height={260}>
             <AreaChart data={perDay}>
               <defs>
-                <linearGradient id="gc" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#3b82f6" stopOpacity={0.35} /><stop offset="95%" stopColor="#3b82f6" stopOpacity={0} /></linearGradient>
+                <linearGradient id="gc" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#A31A1A" stopOpacity={0.35} /><stop offset="95%" stopColor="#A31A1A" stopOpacity={0} /></linearGradient>
                 <linearGradient id="gr" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10b981" stopOpacity={0.35} /><stop offset="95%" stopColor="#10b981" stopOpacity={0} /></linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" opacity={0.5} />
@@ -68,7 +68,7 @@ export default function AdminDashboard() {
               <YAxis tick={{ fontSize: 10 }} allowDecimals={false} orientation="right" />
               <Tooltip contentStyle={tooltipStyle} />
               <Legend wrapperStyle={{ fontSize: 12, fontFamily: 'Vazirmatn' }} />
-              <Area type="monotone" dataKey="created" name="ایجادشده" stroke="#3b82f6" fill="url(#gc)" strokeWidth={2} />
+              <Area type="monotone" dataKey="created" name="ایجادشده" stroke="#A31A1A" fill="url(#gc)" strokeWidth={2} />
               <Area type="monotone" dataKey="resolved" name="حل‌شده" stroke="#10b981" fill="url(#gr)" strokeWidth={2} />
             </AreaChart>
           </ResponsiveContainer>
@@ -117,7 +117,7 @@ export default function AdminDashboard() {
               <YAxis hide allowDecimals={false} />
               <Tooltip contentStyle={tooltipStyle} />
               <Bar dataKey="value" name="تعداد" radius={[8, 8, 0, 0]}>
-                {['#94a3b8', '#3b82f6', '#f97316', '#ef4444'].map((c, i) => <Cell key={i} fill={c} />)}
+                {['#94a3b8', '#7f1d1d', '#f97316', '#ef4444'].map((c, i) => <Cell key={i} fill={c} />)}
               </Bar>
             </BarChart>
           </ResponsiveContainer>

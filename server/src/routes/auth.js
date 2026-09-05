@@ -165,7 +165,7 @@ router.post(
       if (user.email) {
         await sendEmail(user.email, 'بازیابی رمز عبور', emailLayout({ title: 'بازیابی رمز عبور', intro: `${user.name} عزیز، برای تعیین رمز عبور جدید روی دکمه زیر کلیک کنید. این لینک تا یک ساعت معتبر است.`, cta: 'تعیین رمز عبور جدید', ctaUrl: url, footer: 'اگر شما این درخواست را ثبت نکرده‌اید، این ایمیل را نادیده بگیرید.' }), url);
       } else if (user.mobile) {
-        await sendSms(user.mobile, `میلیاک: لینک بازیابی رمز عبور: ${url}`);
+        await sendSms(user.mobile, `میلیونر: لینک بازیابی رمز عبور: ${url}`);
       }
       if (!config.isProd) console.log('[password reset link]', url);
     }

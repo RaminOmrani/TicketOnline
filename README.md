@@ -1,6 +1,6 @@
-# مرکز پشتیبانی آنلاین میلیاک — سامانه تیکتینگ
+# مرکز پشتیبانی آنلاین میلیونر — سامانه تیکتینگ
 
-سامانه تیکتینگ کامل، فارسی و راست‌چین برای **support.softmiliac.com** — مشتریان نرم‌افزار حسابداری میلیاک می‌توانند به بخش‌های مختلف (پشتیبانی فنی، مالی، برنامه‌نویسی، فروش، آموزش و …) پیام بدهند، فایل/تصویر/ویدیو بفرستند، **پیام صوتی ضبط و ارسال کنند** و پاسخ کارشناسان را به‌صورت لحظه‌ای دریافت کنند.
+سامانه تیکتینگ کامل، فارسی و راست‌چین برای **support.softmiliac.com** — مشتریان نرم‌افزار حسابداری میلیونر می‌توانند به بخش‌های مختلف (پشتیبانی فنی، مالی، برنامه‌نویسی، فروش، آموزش و …) پیام بدهند، فایل/تصویر/ویدیو بفرستند، **پیام صوتی ضبط و ارسال کنند** و پاسخ کارشناسان را به‌صورت لحظه‌ای دریافت کنند.
 
 | ورود | داشبورد مدیر | گفتگوی تیکت |
 |---|---|---|
@@ -117,14 +117,14 @@ sudo nginx -t && sudo systemctl reload nginx
 
 ```bash
 # روی سرور: Node.js 22 نصب باشد
-sudo mkdir -p /var/www/miliac-support && sudo chown $USER /var/www/miliac-support
-git clone <repo> /var/www/miliac-support && cd /var/www/miliac-support
+sudo mkdir -p /var/www/millionaire-support && sudo chown $USER /var/www/millionaire-support
+git clone <repo> /var/www/millionaire-support && cd /var/www/millionaire-support
 npm ci --prefix server --omit=dev
 npm ci --prefix client && npm run build --prefix client
-cp .env.example .env && nano .env          # DATA_DIR=/var/www/miliac-support/data
-sudo cp deploy/systemd/miliac-support.service /etc/systemd/system/
-sudo chown -R www-data:www-data /var/www/miliac-support
-sudo systemctl enable --now miliac-support
+cp .env.example .env && nano .env          # DATA_DIR=/var/www/millionaire-support/data
+sudo cp deploy/systemd/millionaire-support.service /etc/systemd/system/
+sudo chown -R www-data:www-data /var/www/millionaire-support
+sudo systemctl enable --now millionaire-support
 ```
 
 سپس همان تنظیم Nginx روش ۱.
@@ -135,7 +135,7 @@ sudo systemctl enable --now miliac-support
 git pull
 docker compose up -d --build            # داکر
 # یا:
-npm ci --prefix client && npm run build --prefix client && sudo systemctl restart miliac-support
+npm ci --prefix client && npm run build --prefix client && sudo systemctl restart millionaire-support
 ```
 
 اسکیمای دیتابیس به‌صورت خودکار ساخته می‌شود؛ نیازی به migration دستی نیست.
@@ -168,8 +168,8 @@ npm ci --prefix client && npm run build --prefix client && sudo systemctl restar
 ## پشتیبان‌گیری
 
 ```bash
-deploy/backup.sh            # دیتابیس (با روش امن SQLite) + پیوست‌ها → /var/backups/miliac-support
-# کرون روزانه: 0 3 * * * /var/www/miliac-support/deploy/backup.sh
+deploy/backup.sh            # دیتابیس (با روش امن SQLite) + پیوست‌ها → /var/backups/millionaire-support
+# کرون روزانه: 0 3 * * * /var/www/millionaire-support/deploy/backup.sh
 ```
 
 بازیابی: توقف سرویس، کپی `support-*.db` به `DATA_DIR/support.db` و استخراج `uploads-*.tar.gz` در `DATA_DIR`.

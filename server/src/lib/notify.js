@@ -28,8 +28,8 @@ function escapeHtml(s = '') {
 }
 
 export function emailLayout({ title, intro, body, cta, ctaUrl, footer }) {
-  const brand = getSetting('brand_color') || '#2563eb';
-  const company = getSetting('company_name') || 'میلیاک';
+  const brand = getSetting('brand_color') || '#A31A1A';
+  const company = getSetting('company_name') || 'میلیونر';
   return `<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
 <body style="margin:0;background:#f3f4f6;font-family:Tahoma,'Segoe UI',Arial,sans-serif;direction:rtl">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f4f6;padding:24px 8px">

@@ -80,7 +80,7 @@ if (fs.existsSync(config.clientDist)) {
     res.sendFile(path.join(config.clientDist, 'index.html'));
   });
 } else {
-  app.get('/', (_req, res) => res.send('Miliac Support API is running. Build the client to serve the UI.'));
+  app.get('/', (_req, res) => res.send('Millionaire Support API is running. Build the client to serve the UI.'));
 }
 
 // Error handler
@@ -97,7 +97,7 @@ createSocket(server);
 startJobs();
 
 server.listen(config.port, config.host, () => {
-  console.log(`Miliac Support server listening on http://${config.host}:${config.port} (${config.isProd ? 'production' : 'development'})`);
+  console.log(`Millionaire Support server listening on http://${config.host}:${config.port} (${config.isProd ? 'production' : 'development'})`);
 });
 
 process.on('unhandledRejection', (e) => console.error('unhandledRejection', e));

@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS departments (
   slug TEXT NOT NULL UNIQUE,
   description TEXT,
   icon TEXT DEFAULT 'life-buoy',
-  color TEXT DEFAULT '#2563eb',
+  color TEXT DEFAULT '#A31A1A',
   is_active INTEGER NOT NULL DEFAULT 1,
   sort_order INTEGER NOT NULL DEFAULT 0,
   sla_first_response_minutes INTEGER NOT NULL DEFAULT 240,

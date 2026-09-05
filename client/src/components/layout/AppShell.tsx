@@ -139,10 +139,11 @@ export default function AppShell() {
           <Logo />
         </div>
         {nav}
-        <div className="mt-auto rounded-xl bg-slate-50 p-3 text-xs text-slate-500 dark:bg-slate-800/60">
-          {settings.working_hours && <div className="mb-1 font-medium">ساعات پاسخ‌گویی</div>}
-          <div className="leading-5">{settings.working_hours}</div>
-          {settings.support_phone && <div className="mt-1 ltr text-right num">{faNum(settings.support_phone)}</div>}
+        <div className="mt-auto rounded-2xl bg-gradient-to-br from-brand-deep to-brand p-3.5 text-xs text-white/85">
+          <div className="mb-1 font-bold text-white">{settings.slogan || settings.company_name}</div>
+          {settings.working_hours && <div className="leading-5">{settings.working_hours}</div>}
+          {settings.support_phone && <div className="mt-1 num">{faNum(settings.support_phone)}</div>}
+          {settings.support_email && <div className="mt-0.5 ltr text-right">{settings.support_email}</div>}
         </div>
       </aside>
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# پشتیبان‌گیری از دیتابیس و فایل‌های پیوست — مثال کرون: 0 3 * * * /var/www/miliac-support/deploy/backup.sh
+# پشتیبان‌گیری از دیتابیس و فایل‌های پیوست — مثال کرون: 0 3 * * * /var/www/millionaire-support/deploy/backup.sh
 set -euo pipefail
 DATA_DIR="${DATA_DIR:-$(dirname "$0")/../data}"
-BACKUP_DIR="${BACKUP_DIR:-/var/backups/miliac-support}"
+BACKUP_DIR="${BACKUP_DIR:-/var/backups/millionaire-support}"
 mkdir -p "$BACKUP_DIR"
 STAMP=$(date +%Y%m%d-%H%M%S)
 # پشتیبان سازگار از SQLite (بدون توقف سرویس)

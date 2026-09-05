@@ -12,6 +12,7 @@ export default {
           DEFAULT: 'rgb(var(--brand-rgb) / <alpha-value>)',
           dark: 'rgb(var(--brand-dark-rgb) / <alpha-value>)',
           light: 'rgb(var(--brand-light-rgb) / <alpha-value>)',
+          deep: 'rgb(var(--brand-deep-rgb) / <alpha-value>)',
           soft: 'rgb(var(--brand-rgb) / 0.10)',
         },
       },

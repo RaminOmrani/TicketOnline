@@ -1,23 +1,23 @@
-import { CheckCircle2, FileUp, Mic, Video, Clock } from 'lucide-react';
+import { CheckCircle2, FileUp, Mic, Video, Clock, MapPin, Phone, Mail } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { useConfig } from '@/store/config';
+import { faNum } from '@/lib/format';
 
 export function AuthLayout({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
   const { settings, departments } = useConfig();
   return (
-    <div className="flex min-h-screen">
-      {/* Brand panel */}
-      <div className="relative hidden w-[46%] flex-col justify-between overflow-hidden bg-brand p-10 text-white lg:flex">
-        <div className="absolute -left-24 -top-24 h-96 w-96 rounded-full bg-white/10 blur-2xl" />
-        <div className="absolute -bottom-32 -right-16 h-[28rem] w-[28rem] rounded-full bg-black/10 blur-3xl" />
+    <div className="flex min-h-screen bg-white dark:bg-slate-950">
+      {/* Brand panel — maroon like the softmiliac.com footer */}
+      <div className="relative hidden w-[46%] flex-col justify-between overflow-hidden bg-gradient-to-br from-brand-deep via-[#5a0f0f] to-brand p-10 text-white lg:flex">
+        <div className="absolute -left-24 -top-24 h-96 w-96 rounded-full bg-white/5 blur-2xl" />
+        <div className="absolute -bottom-32 -right-16 h-[28rem] w-[28rem] rounded-full bg-black/20 blur-3xl" />
         <div className="relative">
-          <div className="inline-flex rounded-2xl bg-white/95 px-4 py-3 shadow-lg">
-            <Logo />
-          </div>
+          <Logo light />
         </div>
         <div className="relative max-w-md">
-          <h2 className="text-3xl font-extrabold leading-snug">{settings.site_title}</h2>
-          <p className="mt-3 text-base leading-8 text-white/85">{settings.tagline}. درخواست خود را ثبت کنید، فایل و تصویر بفرستید، پیام صوتی ضبط کنید و پاسخ کارشناسان را به‌صورت لحظه‌ای دریافت کنید.</p>
+          <h2 className="text-3xl font-extrabold leading-snug">{settings.slogan || settings.site_title}</h2>
+          <p className="mt-2 text-lg font-semibold text-white/90">{settings.tagline}</p>
+          <p className="mt-3 text-[15px] leading-8 text-white/80">درخواست خود را ثبت کنید، فایل و تصویر بفرستید، پیام صوتی ضبط کنید و پاسخ کارشناسان {settings.company_name} را به‌صورت لحظه‌ای دریافت کنید.</p>
           <ul className="mt-8 space-y-3 text-sm">
             {[
               { icon: <CheckCircle2 />, t: 'پیگیری لحظه‌ای وضعیت تیکت و اعلان پاسخ‌ها' },
@@ -27,7 +27,7 @@ export function AuthLayout({ title, subtitle, children }: { title: string; subti
               { icon: <Clock />, t: 'زمان‌بندی پاسخ‌گویی (SLA) برای هر بخش' },
             ].map((i, k) => (
               <li key={k} className="flex items-center gap-3">
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/15 [&>svg]:h-4 [&>svg]:w-4">{i.icon}</span>
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 [&>svg]:h-4 [&>svg]:w-4">{i.icon}</span>
                 {i.t}
               </li>
             ))}
@@ -35,15 +35,16 @@ export function AuthLayout({ title, subtitle, children }: { title: string; subti
           {departments.length > 0 && (
             <div className="mt-8 flex flex-wrap gap-2">
               {departments.map((d) => (
-                <span key={d.id} className="rounded-full bg-white/15 px-3 py-1 text-xs">{d.name}</span>
+                <span key={d.id} className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs">{d.name}</span>
               ))}
             </div>
           )}
         </div>
-        <div className="relative text-xs text-white/70">
-          {settings.website && <a href={settings.website} className="hover:underline">{settings.website.replace(/^https?:\/\//, '')}</a>}
-          {settings.support_email && <span className="mx-2">•</span>}
-          {settings.support_email}
+        <div className="relative space-y-1.5 text-xs text-white/75">
+          {settings.address && <div className="flex items-center gap-2"><MapPin className="h-3.5 w-3.5" />{settings.address}</div>}
+          {settings.support_phone && <div className="flex items-center gap-2"><Phone className="h-3.5 w-3.5" /><span className="num">{faNum(settings.support_phone)}</span></div>}
+          {settings.support_email && <div className="flex items-center gap-2"><Mail className="h-3.5 w-3.5" />{settings.support_email}</div>}
+          {settings.working_hours && <div className="flex items-center gap-2"><Clock className="h-3.5 w-3.5" />{settings.working_hours}</div>}
         </div>
       </div>
 
@@ -57,6 +58,9 @@ export function AuthLayout({ title, subtitle, children }: { title: string; subti
           {subtitle && <p className="mt-1 text-sm text-slate-500">{subtitle}</p>}
           <div className="mt-6">{children}</div>
         </div>
+        {settings.website && (
+          <a href={settings.website} className="mt-10 text-xs text-slate-400 hover:text-brand">{settings.website.replace(/^https?:\/\//, '')}</a>
+        )}
       </div>
     </div>
   );

@@ -126,6 +126,8 @@ export interface PublicConfig {
     company_name_en: string;
     site_title: string;
     tagline: string;
+    slogan: string;
+    address: string;
     logo: string;
     brand_color: string;
     support_email: string;
