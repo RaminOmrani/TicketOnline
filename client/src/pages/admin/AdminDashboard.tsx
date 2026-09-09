@@ -6,6 +6,8 @@ import { BarChart3, Download, Star, Timer, Users, Wifi, Inbox, AlertTriangle, Us
 import { api } from '@/lib/api';
 import { faNum, formatMinutes, formatShortDate } from '@/lib/format';
 import { Avatar, PageLoader, Tabs } from '@/components/ui';
+import { useConfig } from '@/store/config';
+import { CompanyBadge } from '@/components/Logo';
 import { STATUS_META, PRIORITY_META, StatusBadge } from '@/components/tickets/badges';
 
 function Kpi({ label, value, sub, icon, color }: { label: string; value: string; sub?: string; icon: React.ReactNode; color: string }) {
@@ -21,7 +23,9 @@ const tooltipStyle = { borderRadius: 12, border: '1px solid #e2e8f0', fontFamily
 
 export default function AdminDashboard() {
   const [days, setDays] = useState<'7' | '30' | '90'>('30');
-  const { data, isLoading } = useQuery({ queryKey: ['admin-stats', days], queryFn: () => api.get(`/admin/stats?days=${days}`) });
+  const [companyId, setCompanyId] = useState<number>(0);
+  const { companies } = useConfig();
+  const { data, isLoading } = useQuery({ queryKey: ['admin-stats', days, companyId], queryFn: () => api.get(`/admin/stats?days=${days}${companyId ? `&company_id=${companyId}` : ''}`) });
   if (isLoading || !data) return <PageLoader />;
   const t = data.totals;
   const n = (v: any) => Number(v) || 0;
@@ -34,8 +38,14 @@ export default function AdminDashboard() {
   return (
     <div className="mx-auto max-w-7xl space-y-5">
       <div className="flex flex-wrap items-center gap-3">
-        <div><h1 className="flex items-center gap-2 text-xl font-extrabold"><BarChart3 className="h-5 w-5 text-brand" /> گزارش‌ها و آمار</h1><p className="text-xs text-slate-500">{faNum(data.online)} کاربر آنلاین</p></div>
-        <div className="mr-auto flex items-center gap-2">
+        <div><h1 className="flex items-center gap-2 text-xl font-extrabold"><BarChart3 className="h-5 w-5 text-brand" /> گزارش‌ها و آمار{companyId ? ` — ${companies.find((c) => c.id === companyId)?.name || ''}` : ''}</h1><p className="text-xs text-slate-500">{faNum(data.online)} کاربر آنلاین</p></div>
+        <div className="mr-auto flex flex-wrap items-center gap-2">
+          {companies.length > 1 && (
+            <select className="input w-44" value={companyId} onChange={(e) => setCompanyId(Number(e.target.value))}>
+              <option value={0}>همه شرکت‌ها</option>
+              {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          )}
           <Tabs value={days} onChange={setDays} items={[{ value: '7', label: '۷ روز' }, { value: '30', label: '۳۰ روز' }, { value: '90', label: '۹۰ روز' }]} />
           <a href="/api/admin/export/tickets.csv" className="btn-secondary btn-sm"><Download className="h-4 w-4" /> خروجی CSV</a>
         </div>
@@ -89,6 +99,29 @@ export default function AdminDashboard() {
         </div>
       </div>
 
+      {!companyId && data.by_company?.length > 1 && (
+        <div className="card p-4">
+          <h3 className="mb-3 text-sm font-bold">مقایسه شرکت‌ها / برندها</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-xs text-slate-500"><tr><th className="py-2 text-start font-medium">شرکت</th><th className="py-2 text-center font-medium">کل تیکت</th><th className="py-2 text-center font-medium">باز</th><th className="py-2 text-center font-medium">جدید در بازه</th><th className="py-2 text-center font-medium">امتیاز</th><th className="py-2"></th></tr></thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {data.by_company.map((c: any) => (
+                  <tr key={c.id}>
+                    <td className="py-2"><CompanyBadge company={c} /></td>
+                    <td className="py-2 text-center num">{faNum(n(c.total))}</td>
+                    <td className="py-2 text-center num">{faNum(n(c.open))}</td>
+                    <td className="py-2 text-center num">{faNum(n(c.created_period))}</td>
+                    <td className="py-2 text-center">{c.avg_rating ? <span className="inline-flex items-center gap-1 text-amber-600"><Star className="h-3 w-3 fill-current" />{faNum(c.avg_rating)}</span> : '—'}</td>
+                    <td className="py-2 text-end"><button className="text-xs text-brand hover:underline" onClick={() => setCompanyId(c.id)}>گزارش جداگانه</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="card p-4 lg:col-span-2">
           <h3 className="mb-3 text-sm font-bold">عملکرد بخش‌ها</h3>
@@ -98,7 +131,7 @@ export default function AdminDashboard() {
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {data.by_department.map((d: any) => (
                   <tr key={d.id}>
-                    <td className="py-2"><span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full" style={{ background: d.color }} />{d.name}</span></td>
+                    <td className="py-2">{d.name}</td>
                     <td className="py-2 text-center num">{faNum(n(d.total))}</td>
                     <td className="py-2 text-center num">{faNum(n(d.open))}</td>
                     <td className="py-2 text-center">{formatMinutes(d.avg_first_response_min)}</td>

@@ -21,6 +21,7 @@ import notificationRoutes from './routes/notifications.js';
 import adminRoutes from './routes/admin.js';
 import kbRoutes from './routes/kb.js';
 import publicRoutes from './routes/public.js';
+import companyRoutes from './routes/companies.js';
 
 seed({ verbose: !config.isProd || process.env.SEED_VERBOSE === 'true' });
 
@@ -65,6 +66,7 @@ app.use('/api/files', fileRoutes);
 app.use('/api/canned', cannedRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/companies', companyRoutes);
 app.use('/api/kb', kbRoutes);
 
 // Branding assets (logo)

@@ -11,6 +11,7 @@ import { validate, z, str, optStr, idParam, asyncHandler } from '../lib/validate
 import { getAllSettings, setSetting, DEFAULT_SETTINGS } from '../lib/settings.js';
 import { onlineUserIds } from '../lib/realtime.js';
 import { sendEmail, emailLayout, emailEnabled, smsEnabled } from '../lib/notify.js';
+import { normalizeSchedule } from '../lib/businessHours.js';
 
 const router = Router();
 
@@ -55,6 +56,9 @@ router.get('/stats', (req, res) => {
   const days = Math.min(365, Math.max(7, Number(req.query.days) || 30));
   const since = new Date(Date.now() - days * 86400000).toISOString();
   const t = now();
+  const cid = Number(req.query.company_id) || 0;
+  const cw = cid ? ` WHERE company_id = ${cid}` : '';
+  const ca = cid ? ` AND company_id = ${cid}` : '';
   const totals = db
     .prepare(
       `SELECT COUNT(*) total,
@@ -68,14 +72,14 @@ router.get('/stats', (req, res) => {
         ROUND(AVG(CASE WHEN resolved_at IS NOT NULL AND created_at >= ? THEN (julianday(resolved_at)-julianday(created_at))*24*60 END)) avg_resolve_min,
         ROUND(AVG(CASE WHEN rated_at >= ? THEN rating END),2) avg_rating,
         COALESCE(SUM(rated_at >= ?),0) rated_count
-       FROM tickets`
+       FROM tickets${cw}`
     )
     .get(t, since, since, since, since, since, since);
 
   const perDay = db
-    .prepare(`SELECT substr(created_at,1,10) day, COUNT(*) created FROM tickets WHERE created_at >= ? GROUP BY day ORDER BY day`)
+    .prepare(`SELECT substr(created_at,1,10) day, COUNT(*) created FROM tickets WHERE created_at >= ?${ca} GROUP BY day ORDER BY day`)
     .all(since);
-  const resolvedPerDay = db.prepare(`SELECT substr(resolved_at,1,10) day, COUNT(*) resolved FROM tickets WHERE resolved_at >= ? GROUP BY day ORDER BY day`).all(since);
+  const resolvedPerDay = db.prepare(`SELECT substr(resolved_at,1,10) day, COUNT(*) resolved FROM tickets WHERE resolved_at >= ?${ca} GROUP BY day ORDER BY day`).all(since);
   const dayMap = new Map();
   for (let i = days - 1; i >= 0; i--) {
     const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
@@ -89,36 +93,40 @@ router.get('/stats', (req, res) => {
       `SELECT d.id, d.name, d.color, COUNT(t.id) total, COALESCE(SUM(t.status NOT IN ('resolved','closed')),0) open,
         ROUND(AVG(CASE WHEN t.first_response_at IS NOT NULL THEN (julianday(t.first_response_at)-julianday(t.created_at))*24*60 END)) avg_first_response_min,
         ROUND(AVG(t.rating),2) avg_rating
-       FROM departments d LEFT JOIN tickets t ON t.department_id = d.id AND t.created_at >= ? GROUP BY d.id ORDER BY d.sort_order`
+       FROM departments d LEFT JOIN tickets t ON t.department_id = d.id AND t.created_at >= ? ${cid ? `WHERE d.company_id = ${cid}` : ''} GROUP BY d.id ORDER BY d.sort_order`
     )
     .all(since);
-  const byPriority = db.prepare(`SELECT priority, COUNT(*) c FROM tickets WHERE created_at >= ? GROUP BY priority`).all(since);
+  const byPriority = db.prepare(`SELECT priority, COUNT(*) c FROM tickets WHERE created_at >= ?${ca} GROUP BY priority`).all(since);
   const byAgent = db
     .prepare(
       `SELECT u.id, u.name, u.avatar,
-        (SELECT COUNT(*) FROM tickets t WHERE t.assignee_id = u.id AND t.status NOT IN ('resolved','closed')) open,
-        (SELECT COUNT(*) FROM tickets t WHERE t.assignee_id = u.id AND t.resolved_at >= ?) resolved_period,
-        (SELECT COUNT(*) FROM messages m JOIN tickets t ON t.id = m.ticket_id WHERE m.sender_id = u.id AND m.type = 'message' AND m.created_at >= ?) replies_period,
-        (SELECT ROUND(AVG(rating),2) FROM tickets t WHERE t.assignee_id = u.id AND t.rated_at >= ?) avg_rating
+        (SELECT COUNT(*) FROM tickets t WHERE t.assignee_id = u.id AND t.status NOT IN ('resolved','closed')${ca.replace('company_id','t.company_id')}) open,
+        (SELECT COUNT(*) FROM tickets t WHERE t.assignee_id = u.id AND t.resolved_at >= ?${ca.replace('company_id','t.company_id')}) resolved_period,
+        (SELECT COUNT(*) FROM messages m JOIN tickets t ON t.id = m.ticket_id WHERE m.sender_id = u.id AND m.type = 'message' AND m.created_at >= ?${ca.replace('company_id','t.company_id')}) replies_period,
+        (SELECT ROUND(AVG(rating),2) FROM tickets t WHERE t.assignee_id = u.id AND t.rated_at >= ?${ca.replace('company_id','t.company_id')}) avg_rating
        FROM users u WHERE u.role IN ('agent','admin') AND u.is_active = 1 ORDER BY resolved_period DESC`
     )
     .all(since, since, since);
-  const ratings = db.prepare(`SELECT rating, COUNT(*) c FROM tickets WHERE rated_at >= ? GROUP BY rating`).all(since);
+  const ratings = db.prepare(`SELECT rating, COUNT(*) c FROM tickets WHERE rated_at >= ?${ca} GROUP BY rating`).all(since);
   const customers = db.prepare("SELECT COUNT(*) total, COALESCE(SUM(created_at >= ?),0) new_period FROM users WHERE role = 'customer'").get(since);
-  const recent = db.prepare('SELECT id, number, subject, status, priority, created_at, customer_id, department_id FROM tickets ORDER BY id DESC LIMIT 8').all().map((r) => ({
+  const recent = db.prepare(`SELECT id, number, subject, status, priority, created_at, customer_id, department_id FROM tickets${cw} ORDER BY id DESC LIMIT 8`).all().map((r) => ({
     ...r,
     customer: sanitizeUser(db.prepare('SELECT * FROM users WHERE id = ?').get(r.customer_id)),
     department: db.prepare('SELECT id, name, color FROM departments WHERE id = ?').get(r.department_id),
   }));
-  res.json({ days, totals, per_day: [...dayMap.values()], by_department: byDepartment, by_priority: byPriority, by_agent: byAgent, ratings, customers, recent, online: onlineUserIds().size });
+  const byCompany = db.prepare(`SELECT c.id, c.name, c.logo, COUNT(t.id) total, COALESCE(SUM(t.status NOT IN ('resolved','closed')),0) open, COALESCE(SUM(t.created_at >= ?),0) created_period, ROUND(AVG(t.rating),2) avg_rating FROM companies c LEFT JOIN tickets t ON t.company_id = c.id GROUP BY c.id ORDER BY c.sort_order`).all(since);
+  res.json({ days, company_id: cid || null, totals, per_day: [...dayMap.values()], by_department: byDepartment, by_priority: byPriority, by_agent: byAgent, by_company: byCompany, ratings, customers, recent, online: onlineUserIds().size });
 });
 
 /* =========== Departments =========== */
 router.get('/departments', (req, res) => {
-  const rows = db.prepare('SELECT * FROM departments ORDER BY sort_order, id').all();
+  const cid = Number(req.query.company_id) || 0;
+  const rows = cid ? db.prepare('SELECT * FROM departments WHERE company_id = ? ORDER BY sort_order, id').all(cid) : db.prepare('SELECT * FROM departments ORDER BY sort_order, id').all();
   res.json({
     items: rows.map((d) => ({
       ...d,
+      business_hours: (() => { try { return d.business_hours ? JSON.parse(d.business_hours) : null; } catch { return null; } })(),
+      company: d.company_id ? db.prepare('SELECT id, name, logo FROM companies WHERE id = ?').get(d.company_id) : null,
       agents: db.prepare('SELECT u.id, u.name, u.avatar FROM agent_departments ad JOIN users u ON u.id = ad.user_id WHERE ad.department_id = ? ORDER BY u.name').all(d.id),
       open_tickets: db.prepare("SELECT COUNT(*) c FROM tickets WHERE department_id = ? AND status NOT IN ('resolved','closed')").get(d.id).c,
     })),
@@ -137,6 +145,8 @@ const deptSchema = z.object({
   sla_resolve_minutes: z.number().int().min(15).max(1000000).optional(),
   auto_assign: z.boolean().optional(),
   agent_ids: z.array(z.number().int()).optional(),
+  company_id: z.number().int().optional(),
+  business_hours: z.record(z.string(), z.array(z.tuple([z.string(), z.string()]))).nullable().optional(),
 });
 
 function slugify(s) {
@@ -147,9 +157,12 @@ router.post('/departments', validate(deptSchema), (req, res) => {
   const b = req.body;
   let slug = b.slug || slugify(b.name);
   if (db.prepare('SELECT id FROM departments WHERE slug = ?').get(slug)) slug = `${slug}-${Date.now().toString(36)}`;
+  const companyId = b.company_id || db.prepare('SELECT id FROM companies ORDER BY sort_order, id LIMIT 1').get()?.id || null;
+  if (!companyId) return res.status(400).json({ error: 'ابتدا یک شرکت تعریف کنید.' });
+  const hours = b.business_hours ? normalizeSchedule(b.business_hours) : null;
   const info = db
-    .prepare('INSERT INTO departments (name, slug, description, icon, color, is_active, sort_order, sla_first_response_minutes, sla_resolve_minutes, auto_assign) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-    .run(b.name, slug, b.description, b.icon || 'life-buoy', b.color || '#A31A1A', b.is_active === false ? 0 : 1, b.sort_order ?? 0, b.sla_first_response_minutes ?? 240, b.sla_resolve_minutes ?? 2880, b.auto_assign === false ? 0 : 1);
+    .prepare('INSERT INTO departments (name, slug, description, icon, color, is_active, sort_order, sla_first_response_minutes, sla_resolve_minutes, auto_assign, company_id, business_hours) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(b.name, slug, b.description, b.icon || 'life-buoy', b.color || '#8B0000', b.is_active === false ? 0 : 1, b.sort_order ?? 0, b.sla_first_response_minutes ?? 240, b.sla_resolve_minutes ?? 2880, b.auto_assign === false ? 0 : 1, companyId, hours ? JSON.stringify(hours) : null);
   const id = info.lastInsertRowid;
   if (b.agent_ids) {
     const ins = db.prepare('INSERT OR IGNORE INTO agent_departments (user_id, department_id) VALUES (?, ?)');
@@ -173,11 +186,14 @@ router.patch('/departments/:id', validate(idParam, 'params'), validate(deptSchem
     sla_first_response_minutes: b.sla_first_response_minutes ?? d.sla_first_response_minutes,
     sla_resolve_minutes: b.sla_resolve_minutes ?? d.sla_resolve_minutes,
     auto_assign: b.auto_assign === undefined ? d.auto_assign : b.auto_assign ? 1 : 0,
+    company_id: b.company_id ?? d.company_id,
+    business_hours: b.business_hours === undefined ? d.business_hours : (() => { const n = normalizeSchedule(b.business_hours); return n ? JSON.stringify(n) : null; })(),
   };
   if (merged.slug !== d.slug && db.prepare('SELECT id FROM departments WHERE slug = ? AND id != ?').get(merged.slug, d.id)) return res.status(409).json({ error: 'این نامک قبلاً استفاده شده است.' });
-  db.prepare('UPDATE departments SET name=?, slug=?, description=?, icon=?, color=?, is_active=?, sort_order=?, sla_first_response_minutes=?, sla_resolve_minutes=?, auto_assign=? WHERE id=?').run(
-    merged.name, merged.slug, merged.description, merged.icon, merged.color, merged.is_active, merged.sort_order, merged.sla_first_response_minutes, merged.sla_resolve_minutes, merged.auto_assign, d.id
+  db.prepare('UPDATE departments SET name=?, slug=?, description=?, icon=?, color=?, is_active=?, sort_order=?, sla_first_response_minutes=?, sla_resolve_minutes=?, auto_assign=?, company_id=?, business_hours=? WHERE id=?').run(
+    merged.name, merged.slug, merged.description, merged.icon, merged.color, merged.is_active, merged.sort_order, merged.sla_first_response_minutes, merged.sla_resolve_minutes, merged.auto_assign, merged.company_id, merged.business_hours, d.id
   );
+  if (merged.company_id !== d.company_id) db.prepare('UPDATE tickets SET company_id = ? WHERE department_id = ?').run(merged.company_id, d.id);
   if (b.agent_ids) {
     db.transaction(() => {
       db.prepare('DELETE FROM agent_departments WHERE department_id = ?').run(d.id);
@@ -352,6 +368,8 @@ const settingsSchema = z.object({
   welcome_message: optStr(1000).optional(),
   reopen_window_days: z.number().int().min(1).max(365).optional(),
   notify_new_ticket_all_dept_agents: z.boolean().optional(),
+  otp_login_enabled: z.boolean().optional(),
+  password_login_enabled: z.boolean().optional(),
   sla_priority_multiplier: z.object({ low: z.number().positive(), normal: z.number().positive(), high: z.number().positive(), urgent: z.number().positive() }).optional(),
 });
 

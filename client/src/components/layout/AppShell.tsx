@@ -3,7 +3,7 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
 import {
-  LayoutDashboard, Ticket, PlusCircle, BookOpen, Settings, Users, Building2, MessageSquareText, BarChart3, LogOut, Bell, Menu, X, Moon, Sun, User as UserIcon, ChevronDown, Inbox, ScrollText, CheckCheck, ShieldCheck,
+  LayoutDashboard, Ticket, PlusCircle, BookOpen, Settings, Users, Building2, Building, MessageSquareText, BarChart3, LogOut, Bell, Menu, X, Moon, Sun, User as UserIcon, ChevronDown, Inbox, ScrollText, CheckCheck, ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '@/store/auth';
 import { useConfig } from '@/store/config';
@@ -122,6 +122,7 @@ export default function AppShell() {
         <>
           <div className="mt-4 mb-1 px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400">مدیریت</div>
           <NavItem to="/admin" end icon={<BarChart3 />} label="گزارش‌ها و آمار" />
+          <NavItem to="/admin/companies" icon={<Building />} label="شرکت‌ها و برندها" />
           <NavItem to="/admin/departments" icon={<Building2 />} label="بخش‌ها" />
           <NavItem to="/admin/users" icon={<Users />} label="کاربران و کارشناسان" />
           <NavItem to="/admin/kb" icon={<ScrollText />} label="مدیریت مقالات" />

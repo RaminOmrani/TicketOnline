@@ -186,6 +186,59 @@ CREATE TABLE IF NOT EXISTS audit_log (
 
 db.exec(schema);
 
+/* ---------- Multi-company + OTP additions (idempotent migrations) ---------- */
+db.exec(`
+CREATE TABLE IF NOT EXISTS companies (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  name_en TEXT,
+  slug TEXT NOT NULL UNIQUE,
+  description TEXT,
+  logo TEXT,
+  color TEXT DEFAULT '#8B0000',
+  is_active INTEGER NOT NULL DEFAULT 1,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  ticket_prefix TEXT NOT NULL DEFAULT 'TKT',
+  ticket_counter INTEGER NOT NULL DEFAULT 1000,
+  support_email TEXT,
+  support_phone TEXT,
+  website TEXT,
+  business_hours TEXT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+CREATE TABLE IF NOT EXISTS products (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  is_active INTEGER NOT NULL DEFAULT 1
+);
+CREATE TABLE IF NOT EXISTS otp_codes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  identifier TEXT NOT NULL,
+  code_hash TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  attempts INTEGER NOT NULL DEFAULT 0,
+  used_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+CREATE INDEX IF NOT EXISTS idx_otp_identifier ON otp_codes(identifier);
+`);
+
+function ensureColumn(table, column, ddl) {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all().map((c) => c.name);
+  if (!cols.includes(column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`);
+}
+ensureColumn('departments', 'company_id', 'INTEGER REFERENCES companies(id) ON DELETE CASCADE');
+ensureColumn('departments', 'business_hours', 'TEXT');
+ensureColumn('tickets', 'company_id', 'INTEGER REFERENCES companies(id)');
+ensureColumn('tickets', 'agent_first_viewed_at', 'TEXT');
+ensureColumn('tickets', 'first_response_due_at', 'TEXT');
+ensureColumn('canned_responses', 'company_id', 'INTEGER REFERENCES companies(id) ON DELETE SET NULL');
+ensureColumn('kb_articles', 'company_id', 'INTEGER REFERENCES companies(id) ON DELETE SET NULL');
+db.exec('CREATE INDEX IF NOT EXISTS idx_tickets_company ON tickets(company_id)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_departments_company ON departments(company_id)');
+
 export const now = () => new Date().toISOString();
 
 export function tx(fn) {

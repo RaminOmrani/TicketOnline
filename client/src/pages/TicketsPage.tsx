@@ -9,6 +9,7 @@ import { useAuth } from '@/store/auth';
 import { useConfig } from '@/store/config';
 import { Avatar, EmptyState, Pagination, SearchInput, Skeleton, Tabs } from '@/components/ui';
 import { StatusBadge, PriorityBadge, DeptChip, OverdueBadge, STATUS_META, PRIORITY_META } from '@/components/tickets/badges';
+import { CompanyBadge } from '@/components/Logo';
 import type { Ticket, User } from '@/lib/types';
 
 interface ListResp {
@@ -32,21 +33,22 @@ export function TicketRow({ t, staff, compact }: { t: Ticket; staff: boolean; co
   return (
     <Link to={`/tickets/${t.id}`} className={clsx('card block p-4 transition hover:border-brand/40 hover:shadow-pop', unread && 'border-brand/40 bg-brand/[0.03]')}>
       <div className="flex items-start gap-3">
-        {staff ? <Avatar user={t.customer} size="md" className="hidden sm:inline-flex" /> : <span className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full sm:inline-flex" style={{ background: `${t.department.color}18`, color: t.department.color || undefined }}><TicketIcon className="h-5 w-5" /></span>}
+        {staff ? <Avatar user={t.customer} size="md" className="hidden sm:inline-flex" /> : <span className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand/10 text-brand sm:inline-flex"><TicketIcon className="h-5 w-5" /></span>}
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="num font-mono text-[11px] text-slate-400" dir="ltr">{t.number}</span>
+            <span className="num font-mono text-[11px] text-slate-400"><bdi dir="ltr">{t.number}</bdi></span>
             <StatusBadge status={t.status} customerView={!staff} />
             <PriorityBadge priority={t.priority} short={compact} />
-            {t.overdue && <OverdueBadge />}
+            {staff && t.overdue && <OverdueBadge />}
             {unread && <span className="chip bg-brand text-white">{faNum(t.unread)} پیام جدید</span>}
           </div>
-          <h3 className={clsx('mt-1 truncate text-[15px]', unread ? 'font-extrabold' : 'font-semibold')} dir="auto">{t.subject}</h3>
+          <h3 className={clsx('mt-1 truncate text-right text-[15px]', unread ? 'font-extrabold' : 'font-semibold')} dir="rtl"><bdi>{t.subject}</bdi></h3>
           {!compact && t.last_message_preview && <p className="mt-0.5 truncate text-xs text-slate-500" dir="auto">{t.last_message_preview}</p>}
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-slate-500">
+            <CompanyBadge company={t.company} size="xs" />
             <DeptChip department={t.department} />
             {staff && <span className="truncate">{t.customer.name}{t.customer.company ? ` — ${t.customer.company}` : ''}</span>}
-            {t.assignee ? <span className="inline-flex items-center gap-1"><Avatar user={t.assignee} size="xs" />{t.assignee.name}</span> : staff && <span className="text-amber-600">بدون کارشناس</span>}
+            {staff && (t.assignee ? <span className="inline-flex items-center gap-1"><Avatar user={t.assignee} size="xs" />{t.assignee.name}</span> : <span className="text-amber-600">بدون کارشناس</span>)}
             <span className="inline-flex items-center gap-0.5"><MessageSquare className="h-3 w-3" />{faNum(t.message_count || 0)}</span>
             {!!t.attachment_count && <span className="inline-flex items-center gap-0.5"><Paperclip className="h-3 w-3" />{faNum(t.attachment_count)}</span>}
             <span className="mr-auto" title={formatDateTime(t.updated_at)}>{timeAgo(t.updated_at)}</span>
@@ -59,7 +61,7 @@ export function TicketRow({ t, staff, compact }: { t: Ticket; staff: boolean; co
 
 export default function TicketsPage() {
   const { isStaff, user } = useAuth();
-  const { departments } = useConfig();
+  const { departments, companies } = useConfig();
   const [params, setParams] = useSearchParams();
   const [q, setQ] = useState(params.get('q') || '');
   const dq = useDebounced(q);
@@ -77,7 +79,7 @@ export default function TicketsPage() {
   useEffect(() => localStorage.setItem('tickets-dense', dense ? '1' : '0'), [dense]);
 
   const view = (get('view') || 'all') as any;
-  const query = useMemo(() => ({ view: view === 'all' ? undefined : view, status: get('status'), priority: get('priority'), department_id: get('department_id'), assignee_id: get('assignee_id'), customer_id: get('customer_id'), q: get('q'), sort: get('sort') || 'updated', page: get('page') || 1, per_page: 20 }), [params]);
+  const query = useMemo(() => ({ view: view === 'all' ? undefined : view, status: get('status'), priority: get('priority'), department_id: get('department_id'), company_id: get('company_id'), assignee_id: get('assignee_id'), customer_id: get('customer_id'), q: get('q'), sort: get('sort') || 'updated', page: get('page') || 1, per_page: 20 }), [params]);
   const { data, isLoading } = useQuery<ListResp>({ queryKey: ['tickets', query], queryFn: () => api.get('/tickets', query), placeholderData: (prev) => prev });
   const { data: summary } = useQuery({ queryKey: ['summary'], queryFn: () => api.get('/tickets/summary') });
   const { data: staff } = useQuery({ queryKey: ['staff'], queryFn: () => api.get<{ items: User[] }>('/admin/staff'), enabled: isStaff });
@@ -101,7 +103,7 @@ export default function TicketsPage() {
         { value: 'closed', label: 'بسته', count: summary?.closed },
       ];
 
-  const activeFilters = ['status', 'priority', 'department_id', 'assignee_id', 'customer_id'].filter((k) => get(k)).length;
+  const activeFilters = ['status', 'priority', 'department_id', 'company_id', 'assignee_id', 'customer_id'].filter((k) => get(k)).length;
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -130,7 +132,13 @@ export default function TicketsPage() {
       </div>
 
       {showFilters && (
-        <div className="card mb-4 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-5 animate-fade-in">
+        <div className="card mb-4 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-6 animate-fade-in">
+          {companies.length > 1 && (
+            <select className="input" value={get('company_id')} onChange={(e) => { set('company_id', e.target.value); }}>
+              <option value="">همه شرکت‌ها</option>
+              {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          )}
           <select className="input" value={get('status')} onChange={(e) => set('status', e.target.value)}>
             <option value="">همه وضعیت‌ها</option>
             {Object.entries(STATUS_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
@@ -141,7 +149,7 @@ export default function TicketsPage() {
           </select>
           <select className="input" value={get('department_id')} onChange={(e) => set('department_id', e.target.value)}>
             <option value="">همه بخش‌ها</option>
-            {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+            {departments.filter((d) => !get('company_id') || String(d.company_id) === get('company_id')).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
           {isStaff && (
             <select className="input" value={get('assignee_id')} onChange={(e) => set('assignee_id', e.target.value)}>
@@ -158,7 +166,7 @@ export default function TicketsPage() {
             <option value="due">مهلت پاسخ‌گویی</option>
           </select>
           {(activeFilters > 0 || get('customer_id')) && (
-            <button className="btn-ghost btn-sm sm:col-span-2 lg:col-span-5 justify-self-start" onClick={() => setParams(new URLSearchParams(get('view') ? { view: get('view') } : {}), { replace: true })}>
+            <button className="btn-ghost btn-sm sm:col-span-2 lg:col-span-6 justify-self-start" onClick={() => setParams(new URLSearchParams(get('view') ? { view: get('view') } : {}), { replace: true })}>
               <X className="h-4 w-4" /> حذف فیلترها
             </button>
           )}

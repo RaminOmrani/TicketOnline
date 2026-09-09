@@ -5,7 +5,7 @@ import { validate, z, str, optStr, idParam, asyncHandler } from '../lib/validate
 import { makeUploader, processUploads, cleanupTemp, uploadErrorHandler, deleteStored } from '../lib/upload.js';
 import { getSetting } from '../lib/settings.js';
 import {
-  createTicket, addMessage, changeStatus, assignTicket, getTicket, canAccessTicket, shapeTicket, shapeMessage, shapeEvent, addEvent, touchTicket, broadcastTicket, computeDueAt, STATUS_LABELS, PRIORITY_LABELS,
+  createTicket, addMessage, changeStatus, assignTicket, getTicket, canAccessTicket, shapeTicket, shapeMessage, shapeEvent, addEvent, touchTicket, broadcastTicket, computeDueAt, computeFirstResponseDue, markAgentViewed, STATUS_LABELS, PRIORITY_LABELS,
 } from '../lib/tickets.js';
 import { emitToStaff, emitToTicket, emitToUser } from '../lib/realtime.js';
 import { notifyUser } from '../lib/notify.js';
@@ -60,6 +60,7 @@ router.get(
       status: z.string().optional(),
       priority: z.string().optional(),
       department_id: z.coerce.number().int().optional(),
+      company_id: z.coerce.number().int().optional(),
       assignee_id: z.string().optional(), // number | 'me' | 'none'
       customer_id: z.coerce.number().int().optional(),
       q: z.string().trim().max(200).optional(),
@@ -105,6 +106,10 @@ router.get(
       where.push('t.department_id = ?');
       params.push(q.department_id);
     }
+    if (q.company_id) {
+      where.push('t.company_id = ?');
+      params.push(q.company_id);
+    }
     if (q.customer_id && isStaff(u)) {
       where.push('t.customer_id = ?');
       params.push(q.customer_id);
@@ -138,8 +143,8 @@ router.get(
         where.push(u.role === 'customer' ? 't.customer_unread > 0' : 't.agent_unread > 0');
         break;
       case 'overdue':
-        where.push("t.due_at IS NOT NULL AND t.due_at < ? AND t.status NOT IN ('resolved','closed')");
-        params.push(now());
+        where.push("((t.due_at IS NOT NULL AND t.due_at < ?) OR (t.first_response_at IS NULL AND t.first_response_due_at IS NOT NULL AND t.first_response_due_at < ?)) AND t.status NOT IN ('resolved','closed')");
+        params.push(now(), now());
         break;
       case 'resolved':
         where.push("t.status = 'resolved'");
@@ -202,10 +207,10 @@ router.get('/summary', (req, res) => {
         COALESCE(SUM(assignee_id IS NULL AND status NOT IN ('resolved','closed')),0) unassigned,
         COALESCE(SUM(assignee_id = ? AND status NOT IN ('resolved','closed')),0) mine,
         COALESCE(SUM(${u.role === 'customer' ? 'customer_unread' : 'agent_unread'} > 0),0) unread,
-        COALESCE(SUM(due_at IS NOT NULL AND due_at < ? AND status NOT IN ('resolved','closed')),0) overdue
+        COALESCE(SUM(((due_at IS NOT NULL AND due_at < ?) OR (first_response_at IS NULL AND first_response_due_at IS NOT NULL AND first_response_due_at < ?)) AND status NOT IN ('resolved','closed')),0) overdue
        FROM tickets ${scope}`
     )
-    .get(u.id, t, ...params);
+    .get(u.id, t, t, ...params);
   res.json(row);
 });
 
@@ -264,10 +269,11 @@ router.post(
 
 /* ---------- Detail ---------- */
 router.get('/:id', validate(idParam, 'params'), (req, res) => {
-  const t = loadTicketOr404(req, res);
+  let t = loadTicketOr404(req, res);
   if (!t) return;
+  if (isStaff(req.user) && !t.agent_first_viewed_at) t = markAgentViewed(t, req.user);
   const msgs = db.prepare('SELECT * FROM messages WHERE ticket_id = ? ORDER BY id ASC').all(t.id).map((m) => shapeMessage(m, req.user)).filter(Boolean);
-  const events = db.prepare('SELECT * FROM ticket_events WHERE ticket_id = ? ORDER BY id ASC').all(t.id).map(shapeEvent);
+  const events = db.prepare('SELECT * FROM ticket_events WHERE ticket_id = ? ORDER BY id ASC').all(t.id).map((e) => shapeEvent(e, req.user)).filter(Boolean);
   const shaped = shapeTicket(t, req.user, { withCounts: true });
   const extra = {};
   if (isStaff(req.user)) {
@@ -407,7 +413,7 @@ router.patch(
       const dept = db.prepare('SELECT * FROM departments WHERE id = ? AND is_active = 1').get(b.department_id);
       if (!dept) return res.status(400).json({ error: 'بخش معتبر نیست.' });
       const old = db.prepare('SELECT name FROM departments WHERE id = ?').get(current.department_id);
-      touchTicket(current.id, { department_id: dept.id, assignee_id: null, due_at: computeDueAt(dept, b.priority || current.priority, new Date(current.created_at)) });
+      touchTicket(current.id, { department_id: dept.id, company_id: dept.company_id || current.company_id, assignee_id: null, due_at: computeDueAt(dept, b.priority || current.priority, new Date(current.created_at)), first_response_due_at: current.first_response_at ? current.first_response_due_at : computeFirstResponseDue(dept, b.priority || current.priority, new Date(current.created_at)) });
       addEvent(current.id, u.id, 'department_changed', { from: old?.name, to: dept.name });
       current = getTicket(current.id);
       // notify agents of new department
@@ -417,7 +423,7 @@ router.patch(
     }
     if (b.priority && b.priority !== current.priority) {
       const dept = db.prepare('SELECT * FROM departments WHERE id = ?').get(current.department_id);
-      touchTicket(current.id, { priority: b.priority, due_at: computeDueAt(dept, b.priority, new Date(current.created_at)) });
+      touchTicket(current.id, { priority: b.priority, due_at: computeDueAt(dept, b.priority, new Date(current.created_at)), first_response_due_at: current.first_response_at ? current.first_response_due_at : computeFirstResponseDue(dept, b.priority, new Date(current.created_at)) });
       addEvent(current.id, u.id, 'priority_changed', { from: current.priority, to: b.priority, from_label: PRIORITY_LABELS[current.priority], to_label: PRIORITY_LABELS[b.priority] });
       current = getTicket(current.id);
     }

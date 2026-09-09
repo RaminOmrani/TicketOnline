@@ -209,15 +209,15 @@ export function Composer({ ticket, onSent }: Props) {
         <div className="flex-1" />
         <span className="hidden text-[11px] text-slate-400 sm:block">Ctrl + Enter</span>
         {isStaff && !note ? (
-          <div className="flex items-stretch">
-            <button type="button" className="btn-primary rounded-l-none" onClick={() => send()} disabled={sending}>
+          <div className="flex h-10 items-stretch">
+            <button type="button" className="btn-primary h-10 rounded-l-none py-0" onClick={() => send()} disabled={sending}>
               {sending ? <Spinner className="h-4 w-4" /> : <Send className="h-4 w-4 -scale-x-100" />}
               ارسال پاسخ
             </button>
             <Dropdown
               width="w-56"
               trigger={
-                <button type="button" className="btn-primary h-full rounded-r-none border-r border-white/20 px-2" disabled={sending} aria-label="گزینه‌های ارسال">
+                <button type="button" className="btn-primary h-10 rounded-r-none border-r border-white/20 px-2 py-0" disabled={sending} aria-label="گزینه‌های ارسال">
                   <ChevronDown className="h-4 w-4" />
                 </button>
               }
@@ -231,7 +231,7 @@ export function Composer({ ticket, onSent }: Props) {
             </Dropdown>
           </div>
         ) : (
-          <button type="button" className={note ? 'btn bg-amber-500 text-white hover:bg-amber-600' : 'btn-primary'} onClick={() => send()} disabled={sending}>
+          <button type="button" className={clsx('h-10 py-0', note ? 'btn bg-amber-500 text-white hover:bg-amber-600' : 'btn-primary')} onClick={() => send()} disabled={sending}>
             {sending ? <Spinner className="h-4 w-4" /> : <Send className="h-4 w-4 -scale-x-100" />}
             {note ? 'ثبت یادداشت' : 'ارسال'}
           </button>

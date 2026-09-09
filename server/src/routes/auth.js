@@ -6,7 +6,7 @@ import { config } from '../config.js';
 import { hashPassword, verifyPassword, signToken, setAuthCookie, clearAuthCookie, requireAuth, sanitizeUser, normalizeMobile } from '../lib/auth.js';
 import { validate, z, str, optStr, asyncHandler } from '../lib/validate.js';
 import { getSetting } from '../lib/settings.js';
-import { sendEmail, emailLayout, sendSms } from '../lib/notify.js';
+import { sendEmail, emailLayout, sendSms, smsEnabled, emailEnabled } from '../lib/notify.js';
 
 const router = Router();
 
@@ -188,6 +188,78 @@ router.post(
     setAuthCookie(res, token);
     res.json({ ok: true, user: fullUser(user), token });
   }
+);
+
+/* ---------------- OTP login (SMS / email one-time code) ---------------- */
+const otpLimiter = rateLimit({ windowMs: 10 * 60 * 1000, limit: 8, standardHeaders: true, legacyHeaders: false, message: { error: 'تعداد درخواست کد بیش از حد مجاز است. چند دقیقه بعد تلاش کنید.' } });
+
+function otpChannel(identifierRaw) {
+  const id = String(identifierRaw || '').trim().toLowerCase();
+  const mobile = normalizeMobile(id);
+  if (mobile) return { kind: 'mobile', value: mobile };
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(id)) return { kind: 'email', value: id };
+  return null;
+}
+
+router.post(
+  '/otp/request',
+  otpLimiter,
+  validate(z.object({ identifier: str(3, 190) })),
+  asyncHandler(async (req, res) => {
+    if (!getSetting('otp_login_enabled')) return res.status(403).json({ error: 'ورود با کد یک‌بارمصرف غیرفعال است.' });
+    const ch = otpChannel(req.body.identifier);
+    if (!ch) return res.status(400).json({ error: 'شماره موبایل یا ایمیل معتبر وارد کنید.' });
+    if (ch.kind === 'mobile' && !smsEnabled() && config.isProd) return res.status(503).json({ error: 'ارسال پیامک روی سرور فعال نیست. با رمز عبور وارد شوید یا از ایمیل استفاده کنید.' });
+    if (ch.kind === 'email' && !emailEnabled() && config.isProd) return res.status(503).json({ error: 'ارسال ایمیل روی سرور فعال نیست. با رمز عبور وارد شوید.' });
+    // throttle: one code per 60s per identifier
+    const recent = db.prepare("SELECT created_at FROM otp_codes WHERE identifier = ? AND used_at IS NULL ORDER BY id DESC LIMIT 1").get(ch.value);
+    if (recent && Date.now() - Date.parse(recent.created_at) < 60_000) return res.status(429).json({ error: 'کد قبلی هنوز معتبر است. یک دقیقه بعد دوباره درخواست کنید.' });
+    const code = String(crypto.randomInt(100000, 999999));
+    const hash = crypto.createHash('sha256').update(`${ch.value}:${code}`).digest('hex');
+    db.prepare('UPDATE otp_codes SET used_at = ? WHERE identifier = ? AND used_at IS NULL').run(now(), ch.value);
+    db.prepare('INSERT INTO otp_codes (identifier, code_hash, expires_at) VALUES (?, ?, ?)').run(ch.value, hash, new Date(Date.now() + 5 * 60_000).toISOString());
+    const company = getSetting('company_name');
+    if (ch.kind === 'mobile') await sendSms(ch.value, `${company}: کد ورود شما ${code}\nاعتبار: ۵ دقیقه`);
+    else await sendEmail(ch.value, `کد ورود به پشتیبانی ${company}`, emailLayout({ title: 'کد ورود یک‌بارمصرف', intro: 'برای ورود، این کد را در صفحه ورود وارد کنید. اعتبار کد ۵ دقیقه است.', body: code, footer: 'اگر شما درخواست ورود نداده‌اید، این پیام را نادیده بگیرید.' }), `کد ورود: ${code}`);
+    if (!config.isProd) console.log('[otp]', ch.value, code);
+    const exists = !!(ch.kind === 'mobile' ? db.prepare('SELECT id FROM users WHERE mobile = ?').get(ch.value) : db.prepare('SELECT id FROM users WHERE email = ?').get(ch.value));
+    res.json({ ok: true, channel: ch.kind, exists, expires_in: 300, dev_code: config.isProd ? undefined : code });
+  })
+);
+
+router.post(
+  '/otp/verify',
+  otpLimiter,
+  validate(z.object({ identifier: str(3, 190), code: z.string().trim().regex(/^[0-9۰-۹]{6}$/, 'کد ۶ رقمی را وارد کنید.'), name: optStr(100), company: optStr(150) })),
+  asyncHandler(async (req, res) => {
+    const ch = otpChannel(req.body.identifier);
+    if (!ch) return res.status(400).json({ error: 'شناسه معتبر نیست.' });
+    const code = req.body.code.replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
+    const row = db.prepare('SELECT * FROM otp_codes WHERE identifier = ? AND used_at IS NULL ORDER BY id DESC LIMIT 1').get(ch.value);
+    if (!row || Date.parse(row.expires_at) < Date.now()) return res.status(400).json({ error: 'کد منقضی شده است. کد جدید درخواست کنید.' });
+    if (row.attempts >= 5) return res.status(429).json({ error: 'تعداد تلاش بیش از حد. کد جدید درخواست کنید.' });
+    const hash = crypto.createHash('sha256').update(`${ch.value}:${code}`).digest('hex');
+    if (hash !== row.code_hash) {
+      db.prepare('UPDATE otp_codes SET attempts = attempts + 1 WHERE id = ?').run(row.id);
+      return res.status(400).json({ error: 'کد وارد شده اشتباه است.' });
+    }
+    let user = ch.kind === 'mobile' ? db.prepare('SELECT * FROM users WHERE mobile = ?').get(ch.value) : db.prepare('SELECT * FROM users WHERE email = ?').get(ch.value);
+    if (!user) {
+      if (!getSetting('allow_registration')) return res.status(403).json({ error: 'حساب کاربری با این مشخصات وجود ندارد و ثبت‌نام غیرفعال است.' });
+      if (!req.body.name) return res.status(404).json({ error: 'حساب کاربری یافت نشد. برای ساخت حساب، نام خود را وارد کنید.', need_name: true });
+      const info = db
+        .prepare("INSERT INTO users (name, email, mobile, password_hash, role, company) VALUES (?, ?, ?, ?, 'customer', ?)")
+        .run(req.body.name, ch.kind === 'email' ? ch.value : null, ch.kind === 'mobile' ? ch.value : null, hashPassword(crypto.randomBytes(16).toString('hex')), req.body.company);
+      user = db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid);
+      db.prepare('INSERT INTO audit_log (actor_id, action, target, ip) VALUES (?, ?, ?, ?)').run(user.id, 'register_otp', `user:${user.id}`, req.ip);
+    }
+    if (!user.is_active) return res.status(403).json({ error: 'حساب کاربری شما غیرفعال شده است.' });
+    db.prepare('UPDATE otp_codes SET used_at = ? WHERE id = ?').run(now(), row.id);
+    const token = signToken(user);
+    setAuthCookie(res, token);
+    db.prepare('INSERT INTO audit_log (actor_id, action, target, ip) VALUES (?, ?, ?, ?)').run(user.id, 'login_otp', `user:${user.id}`, req.ip);
+    res.json({ user: fullUser(user), token });
+  })
 );
 
 export default router;

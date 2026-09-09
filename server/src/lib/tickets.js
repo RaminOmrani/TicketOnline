@@ -4,6 +4,7 @@ import { agentDepartmentIds, isStaff, sanitizeUser } from './auth.js';
 import { emitToTicket, emitToUser, emitToStaff, emitToDepartment } from './realtime.js';
 import { notifyUser } from './notify.js';
 import { config } from '../config.js';
+import { addBusinessMinutes } from './businessHours.js';
 
 export const STATUS_LABELS = {
   open: 'باز',
@@ -14,16 +15,27 @@ export const STATUS_LABELS = {
 };
 export const PRIORITY_LABELS = { low: 'کم', normal: 'عادی', high: 'زیاد', urgent: 'فوری' };
 
+export function scheduleFor(department) {
+  if (department?.business_hours) {
+    try { return JSON.parse(department.business_hours); } catch {}
+  }
+  const company = department?.company_id ? db.prepare('SELECT business_hours FROM companies WHERE id = ?').get(department.company_id) : null;
+  if (company?.business_hours) {
+    try { return JSON.parse(company.business_hours); } catch {}
+  }
+  return null;
+}
+
 export function computeDueAt(department, priority, from = new Date()) {
   const mult = (getSetting('sla_priority_multiplier') || {})[priority] ?? 1;
   const minutes = Math.max(15, Math.round((department?.sla_resolve_minutes || 2880) * mult));
-  return new Date(from.getTime() + minutes * 60_000).toISOString();
+  return addBusinessMinutes(from, minutes, scheduleFor(department)).toISOString();
 }
 
 export function computeFirstResponseDue(department, priority, from = new Date()) {
   const mult = (getSetting('sla_priority_multiplier') || {})[priority] ?? 1;
   const minutes = Math.max(5, Math.round((department?.sla_first_response_minutes || 240) * mult));
-  return new Date(from.getTime() + minutes * 60_000).toISOString();
+  return addBusinessMinutes(from, minutes, scheduleFor(department)).toISOString();
 }
 
 export function pickAssignee(departmentId) {
@@ -47,13 +59,23 @@ export function addEvent(ticketId, actorId, type, data = {}) {
   const info = db.prepare('INSERT INTO ticket_events (ticket_id, actor_id, type, data) VALUES (?, ?, ?, ?)').run(ticketId, actorId, type, JSON.stringify(data));
   const ev = db.prepare('SELECT * FROM ticket_events WHERE id = ?').get(info.lastInsertRowid);
   const shaped = shapeEvent(ev);
-  emitToTicket(ticketId, 'ticket:event', shaped);
+  emitToTicket(ticketId, 'ticket:event', { ...shaped, id: ev.id });
   return shaped;
 }
 
-export function shapeEvent(ev) {
+export const STAFF_ALIAS = { id: 0, name: 'کارشناس پشتیبانی', role: 'agent', avatar: null, title: 'پشتیبانی', company: null };
+
+/** Events that customers may see (staff identities stripped). */
+const CUSTOMER_EVENT_TYPES = new Set(['created', 'status_changed', 'reopened', 'department_changed', 'rated', 'agent_viewed', 'subject_changed']);
+
+export function shapeEvent(ev, viewer) {
   const actor = ev.actor_id ? db.prepare('SELECT * FROM users WHERE id = ?').get(ev.actor_id) : null;
-  return { id: ev.id, ticket_id: ev.ticket_id, type: ev.type, data: JSON.parse(ev.data || '{}'), actor: sanitizeUser(actor), created_at: ev.created_at };
+  const out = { id: ev.id, ticket_id: ev.ticket_id, type: ev.type, data: JSON.parse(ev.data || '{}'), actor: sanitizeUser(actor), created_at: ev.created_at };
+  if (viewer?.role === 'customer') {
+    if (!CUSTOMER_EVENT_TYPES.has(ev.type)) return null;
+    if (out.actor && out.actor.role !== 'customer') out.actor = { ...STAFF_ALIAS };
+  }
+  return out;
 }
 
 export function canAccessTicket(user, ticket) {
@@ -103,14 +125,18 @@ export function shapeMessage(m, viewer) {
     read_by_customer_at: m.read_by_customer_at,
     read_by_agent_at: m.read_by_agent_at,
   };
-  if (viewer && viewer.role === 'customer' && m.type === 'note') return null;
+  if (viewer && viewer.role === 'customer') {
+    if (m.type === 'note') return null;
+    if (out.sender && out.sender.role !== 'customer') out.sender = { ...STAFF_ALIAS };
+  }
   return out;
 }
 
 export function shapeTicket(t, viewer, { withCounts = false } = {}) {
   const customer = db.prepare('SELECT * FROM users WHERE id = ?').get(t.customer_id);
   const assignee = t.assignee_id ? db.prepare('SELECT * FROM users WHERE id = ?').get(t.assignee_id) : null;
-  const department = db.prepare('SELECT id, name, slug, icon, color, sla_first_response_minutes, sla_resolve_minutes FROM departments WHERE id = ?').get(t.department_id);
+  const department = db.prepare('SELECT id, name, slug, icon, color, company_id, sla_first_response_minutes, sla_resolve_minutes FROM departments WHERE id = ?').get(t.department_id);
+  const company = t.company_id ? db.prepare('SELECT id, name, slug, logo, color FROM companies WHERE id = ?').get(t.company_id) : null;
   const lastMsg = db.prepare("SELECT * FROM messages WHERE ticket_id = ? AND type != 'note' AND deleted_at IS NULL ORDER BY id DESC LIMIT 1").get(t.id);
   const isCustomerView = viewer?.role === 'customer';
   const out = {
@@ -124,14 +150,17 @@ export function shapeTicket(t, viewer, { withCounts = false } = {}) {
     product: t.product,
     tags: JSON.parse(t.tags || '[]'),
     department,
+    company,
     customer: sanitizeUser(customer, { full: isStaff(viewer) }),
-    assignee: sanitizeUser(assignee),
+    assignee: isCustomerView ? null : sanitizeUser(assignee),
+    agent_viewed: !!t.agent_first_viewed_at,
     unread: isCustomerView ? t.customer_unread : t.agent_unread,
     first_response_at: t.first_response_at,
     resolved_at: t.resolved_at,
     closed_at: t.closed_at,
-    due_at: t.due_at,
-    overdue: !!t.due_at && !['resolved', 'closed'].includes(t.status) && Date.parse(t.due_at) < Date.now(),
+    due_at: isCustomerView ? null : t.due_at,
+    first_response_due_at: isCustomerView ? null : t.first_response_due_at,
+    overdue: isCustomerView ? false : !['resolved', 'closed'].includes(t.status) && ((!!t.due_at && Date.parse(t.due_at) < Date.now()) || (!t.first_response_at && !!t.first_response_due_at && Date.parse(t.first_response_due_at) < Date.now())),
     last_message_at: t.last_message_at,
     last_customer_message_at: t.last_customer_message_at,
     last_agent_message_at: t.last_agent_message_at,
@@ -186,9 +215,10 @@ export function createTicket({ customer, actor, subject, departmentId, priority 
   if (!department) throw Object.assign(new Error('بخش انتخاب‌شده معتبر نیست.'), { status: 400 });
 
   const ticket = db.transaction(() => {
-    const number = nextTicketNumber();
+    const number = nextTicketNumber(department.company_id);
     const createdAt = now();
     const due = computeDueAt(department, priority);
+    const frDue = computeFirstResponseDue(department, priority);
     let assigneeId = null;
     if (department.auto_assign) {
       const a = pickAssignee(department.id);
@@ -196,10 +226,10 @@ export function createTicket({ customer, actor, subject, departmentId, priority 
     }
     const info = db
       .prepare(
-        `INSERT INTO tickets (number, subject, department_id, customer_id, assignee_id, status, priority, product, tags, source, agent_unread, due_at, last_message_at, last_customer_message_at, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, 'open', ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)`
+        `INSERT INTO tickets (number, subject, department_id, company_id, customer_id, assignee_id, status, priority, product, tags, source, agent_unread, due_at, first_response_due_at, last_message_at, last_customer_message_at, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, 'open', ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?)`
       )
-      .run(number, subject, department.id, customer.id, assigneeId, priority, product, JSON.stringify(tags), source, due, createdAt, createdAt, createdAt, createdAt);
+      .run(number, subject, department.id, department.company_id || null, customer.id, assigneeId, priority, product, JSON.stringify(tags), source, due, frDue, createdAt, createdAt, createdAt, createdAt);
     const ticketId = info.lastInsertRowid;
     const msgInfo = db.prepare("INSERT INTO messages (ticket_id, sender_id, body, type, read_by_customer_at) VALUES (?, ?, ?, 'message', ?)").run(ticketId, customer.id, body, createdAt);
     for (const a of attachments) {
@@ -311,8 +341,8 @@ export function addMessage({ ticket, sender, body = '', type = 'message', attach
         body: preview,
         ticket: updated,
         email: {
-          subject: `[${updated.number}] پاسخ جدید از پشتیبانی میلیونر`,
-          intro: `${sender.name} به تیکت «${updated.subject}» پاسخ داد:`,
+          subject: `[${updated.number}] پاسخ جدید از پشتیبانی`,
+          intro: `کارشناس پشتیبانی به تیکت «${updated.subject}» پاسخ داد:`,
           body: body.slice(0, 1500) || preview,
         },
         sms: `میلیونر: پاسخ جدید برای تیکت ${updated.number} ثبت شد. ${config.appUrl}/tickets/${updated.id}`,
@@ -338,6 +368,22 @@ export function addMessage({ ticket, sender, body = '', type = 'message', attach
     }
   }
   return msg;
+}
+
+/** First time a staff member opens a ticket: tell the customer it is being reviewed. */
+export function markAgentViewed(ticket, actor) {
+  if (!ticket || ticket.agent_first_viewed_at || !isStaff(actor)) return ticket;
+  const t = now();
+  const fields = { agent_first_viewed_at: t };
+  if (ticket.status === 'open') fields.status = 'in_progress';
+  if (!ticket.assignee_id && actor.role === 'agent') fields.assignee_id = actor.id;
+  touchTicket(ticket.id, fields);
+  addEvent(ticket.id, actor.id, 'agent_viewed', { status: fields.status || ticket.status });
+  const updated = getTicket(ticket.id);
+  broadcastTicket(ticket.id);
+  const customer = db.prepare('SELECT * FROM users WHERE id = ?').get(updated.customer_id);
+  notifyUser(customer, { type: 'ticket_viewed', title: `تیکت ${updated.number} در حال بررسی است`, body: 'کارشناس پشتیبانی تیکت شما را مشاهده کرد.', ticket: updated });
+  return updated;
 }
 
 export function changeStatus(ticket, actor, status, extra = {}) {

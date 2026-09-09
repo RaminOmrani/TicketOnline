@@ -9,6 +9,7 @@ import { faNum, formatDateTime, timeAgo, timeLeft, formatMinutes } from '@/lib/f
 import { useAuth } from '@/store/auth';
 import { useConfig } from '@/store/config';
 import { Avatar, Modal } from '@/components/ui';
+import { CompanyBadge } from '@/components/Logo';
 import { STATUS_META, PRIORITY_META, StatusBadge, DeptChip } from './badges';
 import { Timeline } from '@/components/thread/Timeline';
 import type { Ticket, TicketEvent, User } from '@/lib/types';
@@ -76,7 +77,9 @@ export function RatingWidget({ ticket }: { ticket: Ticket }) {
 
 export function TicketSidebar({ ticket, events, customerStats }: Props) {
   const { isStaff, isAdmin, user } = useAuth();
-  const { departments, products } = { departments: useConfig().departments, products: useConfig().settings.products };
+  const cfg = useConfig();
+  const departments = cfg.departments;
+  const products = ((cfg.companies.find((c) => c.id === ticket.company?.id)?.products as string[]) || []);
   const qc = useQueryClient();
   const [tagInput, setTagInput] = useState('');
   const [showTimeline, setShowTimeline] = useState(false);
@@ -111,10 +114,11 @@ export function TicketSidebar({ ticket, events, customerStats }: Props) {
 
       {/* Properties */}
       <div className="card p-4">
-        <h3 className="mb-1 text-sm font-bold">مشخصات تیکت</h3>
+        <h3 className="mb-1 text-sm font-bold">{isStaff ? 'مدیریت تیکت' : 'مشخصات تیکت'}</h3>
         <div className="divide-y divide-slate-100 dark:divide-slate-800">
-          <Row label="شماره"><span className="num ltr inline-flex items-center gap-1 font-mono text-xs"><Hash className="h-3 w-3" />{ticket.number}</span></Row>
-          <Row label="وضعیت">
+          {isStaff && <Row label="شماره"><span className="num ltr inline-flex items-center gap-1 font-mono text-xs"><Hash className="h-3 w-3" />{ticket.number}</span></Row>}
+          {ticket.company && <Row label="شرکت"><CompanyBadge company={ticket.company} /></Row>}
+          {isStaff && <Row label="وضعیت">
             {isStaff ? (
               <select className="input py-1 text-xs" value={ticket.status} onChange={(e) => update({ status: e.target.value }, 'وضعیت تغییر کرد')}>
                 {Object.entries(STATUS_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
@@ -122,8 +126,8 @@ export function TicketSidebar({ ticket, events, customerStats }: Props) {
             ) : (
               <StatusBadge status={ticket.status} customerView />
             )}
-          </Row>
-          <Row label="اولویت">
+          </Row>}
+          {isStaff && <Row label="اولویت">
             {isStaff ? (
               <select className="input py-1 text-xs" value={ticket.priority} onChange={(e) => update({ priority: e.target.value }, 'اولویت تغییر کرد')}>
                 {Object.entries(PRIORITY_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
@@ -131,11 +135,15 @@ export function TicketSidebar({ ticket, events, customerStats }: Props) {
             ) : (
               <span className={PRIORITY_META[ticket.priority].color}>{PRIORITY_META[ticket.priority].label}</span>
             )}
-          </Row>
+          </Row>}
           <Row label="بخش">
             {isStaff ? (
               <select className="input py-1 text-xs" value={ticket.department.id} onChange={(e) => update({ department_id: Number(e.target.value) }, 'تیکت ارجاع داده شد')}>
-                {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                {cfg.companies.map((c) => (
+                  <optgroup key={c.id} label={c.name}>
+                    {departments.filter((d) => d.company_id === c.id).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  </optgroup>
+                ))}
               </select>
             ) : (
               <DeptChip department={ticket.department} />
@@ -151,9 +159,9 @@ export function TicketSidebar({ ticket, events, customerStats }: Props) {
               </select>
             </Row>
           )}
-          {!isStaff && ticket.assignee && (
-            <Row label="کارشناس">
-              <span className="inline-flex items-center gap-1.5"><Avatar user={ticket.assignee} size="xs" />{ticket.assignee.name}</span>
+          {!isStaff && (
+            <Row label="وضعیت بررسی">
+              {['resolved', 'closed'].includes(ticket.status) ? <span className="text-slate-500">پایان‌یافته</span> : ticket.agent_viewed ? <span className="text-brand">کارشناس در حال بررسی است</span> : <span className="text-slate-500">در صف بررسی</span>}
             </Row>
           )}
           <Row label="محصول">
@@ -169,15 +177,15 @@ export function TicketSidebar({ ticket, events, customerStats }: Props) {
           </Row>
           <Row label="ایجاد"><span title={formatDateTime(ticket.created_at)}>{timeAgo(ticket.created_at)}</span></Row>
           <Row label="آخرین به‌روزرسانی"><span title={formatDateTime(ticket.updated_at)}>{timeAgo(ticket.updated_at)}</span></Row>
-          {ticket.first_response_at && <Row label="اولین پاسخ">{formatMinutes((Date.parse(ticket.first_response_at) - Date.parse(ticket.created_at)) / 60000)} بعد از ثبت</Row>}
+          {isStaff && ticket.first_response_at && <Row label="اولین پاسخ">{formatMinutes((Date.parse(ticket.first_response_at) - Date.parse(ticket.created_at)) / 60000)} بعد از ثبت</Row>}
           {ticket.resolved_at && <Row label="حل شده">{formatDateTime(ticket.resolved_at)}</Row>}
           {ticket.closed_at && <Row label="بسته شده">{formatDateTime(ticket.closed_at)}</Row>}
           <Row label="پیام / پیوست"><span className="inline-flex items-center gap-2"><span className="inline-flex items-center gap-0.5"><MessageSquare className="h-3.5 w-3.5 text-slate-400" />{faNum(ticket.message_count || 0)}</span><span className="inline-flex items-center gap-0.5"><Paperclip className="h-3.5 w-3.5 text-slate-400" />{faNum(ticket.attachment_count || 0)}</span></span></Row>
         </div>
       </div>
 
-      {/* SLA */}
-      {ticket.due_at && (
+      {/* SLA (staff only) */}
+      {isStaff && ticket.due_at && (
         <div className={clsx('card p-4', active && sla.overdue && 'border-rose-300 bg-rose-50 dark:border-rose-500/40 dark:bg-rose-500/10', active && !sla.overdue && sla.urgent && 'border-amber-300 bg-amber-50 dark:border-amber-500/40 dark:bg-amber-500/10')}>
           <div className="flex items-center justify-between">
             <h3 className="flex items-center gap-1.5 text-sm font-bold"><Clock className="h-4 w-4" /> مهلت پاسخ‌گویی (SLA)</h3>
@@ -187,9 +195,14 @@ export function TicketSidebar({ ticket, events, customerStats }: Props) {
               </button>
             )}
           </div>
-          <div className="mt-2 text-sm">
-            {active ? <span className={clsx('font-bold', sla.overdue ? 'text-rose-600' : sla.urgent ? 'text-amber-600' : 'text-emerald-600')}>{sla.text}</span> : <span className="text-slate-500">تیکت {ticket.status === 'resolved' ? 'حل شده' : 'بسته شده'} است</span>}
-            <div className="text-xs text-slate-400">{formatDateTime(ticket.due_at)}</div>
+          <div className="mt-2 space-y-1.5 text-sm">
+            {active && !ticket.first_response_at && ticket.first_response_due_at && (() => { const fr = timeLeft(ticket.first_response_due_at); return <div><span className="text-xs text-slate-500">اولین پاسخ: </span><span className={clsx('font-bold', fr.overdue ? 'text-rose-600' : fr.urgent ? 'text-amber-600' : 'text-emerald-600')}>{fr.text}</span><span className="mr-1 text-[11px] text-slate-400">({formatDateTime(ticket.first_response_due_at)})</span></div>; })()}
+            <div>
+              <span className="text-xs text-slate-500">حل تیکت: </span>
+              {active ? <span className={clsx('font-bold', sla.overdue ? 'text-rose-600' : sla.urgent ? 'text-amber-600' : 'text-emerald-600')}>{sla.text}</span> : <span className="text-slate-500">تیکت {ticket.status === 'resolved' ? 'حل شده' : 'بسته شده'} است</span>}
+              <span className="mr-1 text-[11px] text-slate-400">({formatDateTime(ticket.due_at)})</span>
+            </div>
+            <div className="text-[11px] text-slate-400">بر اساس ساعات کاری شرکت/بخش محاسبه می‌شود.</div>
           </div>
         </div>
       )}
@@ -259,13 +272,13 @@ export function TicketSidebar({ ticket, events, customerStats }: Props) {
       )}
 
       {/* Timeline */}
-      <div className="card p-4">
+      {events.length > 0 && <div className="card p-4">
         <button className="flex w-full items-center justify-between text-sm font-bold" onClick={() => setShowTimeline((s) => !s)}>
           <span className="flex items-center gap-1.5"><History className="h-4 w-4" /> تاریخچه ({faNum(events.length)})</span>
           <span className="text-xs font-normal text-brand">{showTimeline ? 'بستن' : 'نمایش'}</span>
         </button>
         {showTimeline && <div className="mt-4"><Timeline events={events} customerView={isCustomer} /></div>}
-      </div>
+      </div>}
 
       <Modal open={dueOpen} onClose={() => setDueOpen(false)} title="ویرایش مهلت پاسخ‌گویی" size="sm" footer={<><button className="btn-secondary" onClick={() => setDueOpen(false)}>انصراف</button><button className="btn-primary" onClick={() => { update({ due_at: dueVal ? new Date(dueVal).toISOString() : null }, 'مهلت به‌روز شد'); setDueOpen(false); }}>ذخیره</button></>}>
         <input type="datetime-local" className="input ltr" value={dueVal} onChange={(e) => setDueVal(e.target.value)} />

@@ -8,21 +8,23 @@ import { faNum, formatMinutes } from '@/lib/format';
 import { useConfig } from '@/store/config';
 import { Avatar, ConfirmDialog, Field, Modal, Spinner, Toggle } from '@/components/ui';
 import { DeptIcon, DEPT_ICONS } from '@/components/tickets/badges';
-import type { Department, User } from '@/lib/types';
+import type { BusinessHours, Department, User } from '@/lib/types';
+import { BusinessHoursEditor } from '@/components/BusinessHoursEditor';
+import { CompanyBadge } from '@/components/Logo';
 
 const ICONS = DEPT_ICONS;
-const COLORS = ['#A31A1A', '#6D1212', '#9F1239', '#C2410C', '#B45309', '#8A1C1C', '#7c3aed', '#0f766e', '#2563eb', '#334155'];
 
-type Form = { id?: number; name: string; description: string; icon: string; color: string; is_active: boolean; sort_order: number; sla_first_response_minutes: number; sla_resolve_minutes: number; auto_assign: boolean; agent_ids: number[] };
-const empty: Form = { name: '', description: '', icon: 'life-buoy', color: '#A31A1A', is_active: true, sort_order: 0, sla_first_response_minutes: 240, sla_resolve_minutes: 2880, auto_assign: true, agent_ids: [] };
+type Form = { id?: number; name: string; description: string; icon: string; color: string; is_active: boolean; sort_order: number; sla_first_response_minutes: number; sla_resolve_minutes: number; auto_assign: boolean; agent_ids: number[]; company_id: number | null; business_hours: BusinessHours | null };
+const empty: Form = { name: '', description: '', icon: 'life-buoy', color: '#8B0000', is_active: true, sort_order: 0, sla_first_response_minutes: 240, sla_resolve_minutes: 2880, auto_assign: true, agent_ids: [], company_id: null, business_hours: null };
 
 export default function AdminDepartments() {
   const qc = useQueryClient();
-  const { reload } = useConfig();
+  const { reload, companies } = useConfig();
+  const [companyFilter, setCompanyFilter] = useState<number>(0);
   const [edit, setEdit] = useState<Form | null>(null);
   const [del, setDel] = useState<Department | null>(null);
   const [saving, setSaving] = useState(false);
-  const { data } = useQuery({ queryKey: ['admin-departments'], queryFn: () => api.get<{ items: Department[] }>('/admin/departments') });
+  const { data } = useQuery({ queryKey: ['admin-departments', companyFilter], queryFn: () => api.get<{ items: Department[] }>('/admin/departments', { company_id: companyFilter || undefined }) });
   const { data: staff } = useQuery({ queryKey: ['staff'], queryFn: () => api.get<{ items: User[] }>('/admin/staff') });
 
   const save = async () => {
@@ -47,15 +49,21 @@ export default function AdminDepartments() {
     <div className="mx-auto max-w-6xl">
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div><h1 className="flex items-center gap-2 text-xl font-extrabold"><Building2 className="h-5 w-5 text-brand" /> بخش‌های پشتیبانی</h1><p className="text-xs text-slate-500">بخش‌ها، کارشناسان هر بخش و زمان‌بندی پاسخ‌گویی (SLA)</p></div>
-        <button className="btn-primary mr-auto" onClick={() => setEdit({ ...empty, sort_order: (data?.items.length || 0) + 1 })}><PlusCircle className="h-4 w-4" /> بخش جدید</button>
+        <div className="mr-auto flex items-center gap-2">
+          <select className="input w-48" value={companyFilter} onChange={(e) => setCompanyFilter(Number(e.target.value))}>
+            <option value={0}>همه شرکت‌ها</option>
+            {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          <button className="btn-primary" onClick={() => setEdit({ ...empty, company_id: companyFilter || companies[0]?.id || null, sort_order: (data?.items.length || 0) + 1 })}><PlusCircle className="h-4 w-4" /> بخش جدید</button>
+        </div>
       </div>
       <div className="grid gap-3 md:grid-cols-2">
         {data?.items.map((d) => (
           <div key={d.id} className={clsx('card p-4', !d.is_active && 'opacity-60')}>
             <div className="flex items-start gap-3">
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl" style={{ background: `${d.color}1a`, color: d.color || undefined }}><DeptIcon name={d.icon} className="h-6 w-6" /></span>
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand/10 text-brand"><DeptIcon name={d.icon} className="h-6 w-6" /></span>
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2"><h3 className="font-bold">{d.name}</h3>{!d.is_active && <span className="chip bg-slate-100 text-slate-500">غیرفعال</span>}{!d.auto_assign && <span className="chip bg-amber-50 text-amber-700">تخصیص دستی</span>}</div>
+                <div className="flex flex-wrap items-center gap-2"><h3 className="font-bold">{d.name}</h3><CompanyBadge company={d.company} size="xs" />{d.business_hours && <span className="chip bg-slate-100 text-slate-500 dark:bg-slate-800">ساعت کاری اختصاصی</span>}{!d.is_active && <span className="chip bg-slate-100 text-slate-500">غیرفعال</span>}{!d.auto_assign && <span className="chip bg-amber-50 text-amber-700">تخصیص دستی</span>}</div>
                 <p className="mt-0.5 text-xs text-slate-500">{d.description}</p>
                 <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-500">
                   <span>اولین پاسخ: {formatMinutes(d.sla_first_response_minutes)}</span>
@@ -68,7 +76,7 @@ export default function AdminDepartments() {
                 </div>
               </div>
               <div className="flex gap-1">
-                <button className="btn-icon h-8 w-8" onClick={() => setEdit({ id: d.id, name: d.name, description: d.description || '', icon: d.icon || 'life-buoy', color: d.color || '#A31A1A', is_active: !!d.is_active, sort_order: d.sort_order || 0, sla_first_response_minutes: d.sla_first_response_minutes || 240, sla_resolve_minutes: d.sla_resolve_minutes || 2880, auto_assign: !!d.auto_assign, agent_ids: (d.agents || []).map((a) => a.id) })}><Pencil className="h-4 w-4" /></button>
+                <button className="btn-icon h-8 w-8" onClick={() => setEdit({ id: d.id, name: d.name, description: d.description || '', icon: d.icon || 'life-buoy', color: d.color || '#A31A1A', is_active: !!d.is_active, sort_order: d.sort_order || 0, sla_first_response_minutes: d.sla_first_response_minutes || 240, sla_resolve_minutes: d.sla_resolve_minutes || 2880, auto_assign: !!d.auto_assign, agent_ids: (d.agents || []).map((a) => a.id), company_id: d.company_id || null, business_hours: d.business_hours || null })}><Pencil className="h-4 w-4" /></button>
                 <button className="btn-icon h-8 w-8 text-rose-500" onClick={() => setDel(d)}><Trash2 className="h-4 w-4" /></button>
               </div>
             </div>
@@ -80,20 +88,19 @@ export default function AdminDepartments() {
         {edit && (
           <div className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-3">
-              <div className="sm:col-span-2"><Field label="نام بخش" required><input className="input" value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} /></Field></div>
+              <Field label="شرکت / برند" required>
+                <select className="input" value={edit.company_id || ''} onChange={(e) => setEdit({ ...edit, company_id: Number(e.target.value) || null })}>
+                  {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </Field>
+              <Field label="نام بخش" required><input className="input" value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} /></Field>
               <Field label="ترتیب"><input className="input ltr" type="number" value={edit.sort_order} onChange={(e) => setEdit({ ...edit, sort_order: Number(e.target.value) })} /></Field>
             </div>
             <Field label="توضیح کوتاه" hint="به مشتری کمک می‌کند بخش درست را انتخاب کند."><input className="input" value={edit.description} onChange={(e) => setEdit({ ...edit, description: e.target.value })} /></Field>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4">
               <Field label="آیکون">
                 <div className="flex flex-wrap gap-1.5">
                   {ICONS.map((i) => <button key={i} type="button" onClick={() => setEdit({ ...edit, icon: i })} className={clsx('flex h-9 w-9 items-center justify-center rounded-lg border transition', edit.icon === i ? 'border-brand bg-brand/10 text-brand' : 'border-slate-200 text-slate-500 hover:bg-slate-50 dark:border-slate-700')}><DeptIcon name={i} className="h-4 w-4" /></button>)}
-                </div>
-              </Field>
-              <Field label="رنگ">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {COLORS.map((c) => <button key={c} type="button" onClick={() => setEdit({ ...edit, color: c })} className={clsx('h-8 w-8 rounded-full border-2 transition', edit.color === c ? 'border-slate-900 scale-110 dark:border-white' : 'border-transparent')} style={{ background: c }} />)}
-                  <input type="color" value={edit.color} onChange={(e) => setEdit({ ...edit, color: e.target.value })} className="h-8 w-10 cursor-pointer rounded border-0 bg-transparent" />
                 </div>
               </Field>
             </div>
@@ -111,6 +118,16 @@ export default function AdminDepartments() {
                 ))}
                 {!staff?.items.length && <span className="text-xs text-slate-400">کارشناسی تعریف نشده است.</span>}
               </div>
+            </Field>
+            <Field label="ساعت کاری اختصاصی این بخش" hint="اگر خالی باشد، ساعت کاری شرکت اعمال می‌شود.">
+              {edit.business_hours ? (
+                <div className="space-y-2">
+                  <BusinessHoursEditor value={edit.business_hours} onChange={(v) => setEdit({ ...edit, business_hours: v })} />
+                  <button type="button" className="btn-ghost btn-sm" onClick={() => setEdit({ ...edit, business_hours: null })}>استفاده از ساعت کاری شرکت</button>
+                </div>
+              ) : (
+                <button type="button" className="btn-secondary btn-sm" onClick={() => setEdit({ ...edit, business_hours: { sat: [['08:30', '17:00']], sun: [['08:30', '17:00']], mon: [['08:30', '17:00']], tue: [['08:30', '17:00']], wed: [['08:30', '17:00']], thu: [['08:30', '17:00']], fri: [] } })}>تعریف ساعت کاری اختصاصی</button>
+              )}
             </Field>
             <Toggle checked={edit.auto_assign} onChange={(v) => setEdit({ ...edit, auto_assign: v })} label="تخصیص خودکار" description="تیکت جدید به کارشناسی که کمترین تیکت باز را دارد تخصیص می‌یابد." />
             <Toggle checked={edit.is_active} onChange={(v) => setEdit({ ...edit, is_active: v })} label="فعال" description="بخش غیرفعال برای مشتریان نمایش داده نمی‌شود." />

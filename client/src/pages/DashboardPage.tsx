@@ -26,7 +26,7 @@ function Stat({ label, value, icon, to, color = 'brand' }: { label: string; valu
 
 export default function DashboardPage() {
   const { user, isStaff } = useAuth();
-  const { departments, settings } = useConfig();
+  const { companies, settings } = useConfig();
   const { data: summary } = useQuery({ queryKey: ['summary'], queryFn: () => api.get('/tickets/summary') });
   const { data: recent, isLoading } = useQuery({ queryKey: ['tickets', { view: isStaff ? 'open' : undefined, per_page: 6, sort: 'updated' }], queryFn: () => api.get<{ items: Ticket[] }>('/tickets', { view: isStaff ? 'open' : undefined, per_page: 6, sort: 'updated' }) });
   const { data: unread } = useQuery({ queryKey: ['tickets', { view: 'unread', per_page: 5 }], queryFn: () => api.get<{ items: Ticket[] }>('/tickets', { view: 'unread', per_page: 5 }) });
@@ -89,17 +89,27 @@ export default function DashboardPage() {
         <div className="space-y-6">
           {!isStaff && (
             <section className="card p-4">
-              <h2 className="mb-3 text-base font-bold">بخش‌های پشتیبانی</h2>
-              <ul className="space-y-1.5">
-                {departments.map((d) => (
-                  <li key={d.id}>
-                    <Link to={`/tickets/new?department=${d.id}`} className="flex items-center gap-3 rounded-xl p-2 transition hover:bg-slate-50 dark:hover:bg-slate-800">
-                      <span className="flex h-9 w-9 items-center justify-center rounded-lg" style={{ background: `${d.color}1a`, color: d.color || undefined }}><DeptIcon name={d.icon} className="h-5 w-5" /></span>
-                      <span className="min-w-0"><span className="block text-sm font-semibold">{d.name}</span><span className="line-clamp-1 text-[11px] text-slate-500">{d.description}</span></span>
+              <h2 className="mb-3 text-base font-bold">شرکت‌ها و بخش‌های پشتیبانی</h2>
+              <div className="space-y-4">
+                {companies.map((c) => (
+                  <div key={c.id}>
+                    <Link to={`/tickets/new?company=${c.id}`} className="mb-1 flex items-center gap-2 text-sm font-bold text-brand hover:underline">
+                      {c.logo ? <img src={c.logo} alt="" className="h-6 w-auto object-contain" /> : null}
+                      {c.name}
                     </Link>
-                  </li>
+                    <ul className="space-y-0.5">
+                      {c.departments?.map((d) => (
+                        <li key={d.id}>
+                          <Link to={`/tickets/new?company=${c.id}&department=${d.id}`} className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition hover:bg-slate-50 dark:hover:bg-slate-800">
+                            <span className="text-brand"><DeptIcon name={d.icon} className="h-4 w-4" /></span>
+                            <span className="text-sm">{d.name}</span>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 ))}
-              </ul>
+              </div>
             </section>
           )}
           {!isStaff && (

@@ -24,6 +24,30 @@ export interface User {
   open_count?: number;
 }
 
+export interface Company {
+  id: number;
+  name: string;
+  name_en?: string | null;
+  slug: string;
+  description?: string | null;
+  logo?: string | null;
+  color?: string | null;
+  is_active?: number | boolean;
+  sort_order?: number;
+  ticket_prefix?: string;
+  support_email?: string | null;
+  support_phone?: string | null;
+  website?: string | null;
+  business_hours?: BusinessHours | null;
+  business_hours_text?: string;
+  departments?: Department[];
+  products?: string[] | { id: number; name: string }[];
+  ticket_count?: number;
+  open_tickets?: number;
+}
+
+export type BusinessHours = Record<'sat' | 'sun' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri', [string, string][]>;
+
 export interface Department {
   id: number;
   name: string;
@@ -36,6 +60,9 @@ export interface Department {
   sla_first_response_minutes?: number;
   sla_resolve_minutes?: number;
   auto_assign?: number | boolean;
+  company_id?: number | null;
+  company?: { id: number; name: string; logo?: string | null } | null;
+  business_hours?: BusinessHours | null;
   agents?: { id: number; name: string; avatar?: string | null }[];
   open_tickets?: number;
 }
@@ -89,13 +116,16 @@ export interface Ticket {
   product?: string | null;
   tags: string[];
   department: Department;
+  company?: { id: number; name: string; slug: string; logo?: string | null; color?: string | null } | null;
   customer: User;
   assignee: User | null;
+  agent_viewed?: boolean;
   unread: number;
   first_response_at?: string | null;
   resolved_at?: string | null;
   closed_at?: string | null;
   due_at?: string | null;
+  first_response_due_at?: string | null;
   overdue: boolean;
   last_message_at?: string | null;
   last_customer_message_at?: string | null;
@@ -141,8 +171,11 @@ export interface PublicConfig {
     allow_registration: boolean;
     welcome_message: string;
     reopen_window_days: number;
+    otp_login_enabled: boolean;
+    password_login_enabled: boolean;
   };
   departments: Department[];
+  companies: Company[];
   channels: { email: boolean; sms: boolean };
   statuses: Record<Status, string>;
   priorities: Record<Priority, string>;
@@ -155,6 +188,8 @@ export interface CannedResponse {
   body: string;
   department_id?: number | null;
   department_name?: string | null;
+  company_id?: number | null;
+  company_name?: string | null;
 }
 
 export interface KbArticle {

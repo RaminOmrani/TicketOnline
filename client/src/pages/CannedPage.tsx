@@ -7,11 +7,11 @@ import { useConfig } from '@/store/config';
 import { ConfirmDialog, EmptyState, Field, Modal, SearchInput, Spinner } from '@/components/ui';
 import type { CannedResponse } from '@/lib/types';
 
-const empty = { title: '', shortcut: '', body: '', department_id: null as number | null };
+const empty = { title: '', shortcut: '', body: '', department_id: null as number | null, company_id: null as number | null };
 
 export default function CannedPage() {
   const qc = useQueryClient();
-  const { departments } = useConfig();
+  const { departments, companies } = useConfig();
   const [q, setQ] = useState('');
   const [edit, setEdit] = useState<(typeof empty & { id?: number }) | null>(null);
   const [del, setDel] = useState<CannedResponse | null>(null);
@@ -23,7 +23,7 @@ export default function CannedPage() {
     if (!edit) return;
     setSaving(true);
     try {
-      const payload = { title: edit.title, shortcut: edit.shortcut || null, body: edit.body, department_id: edit.department_id || null };
+      const payload = { title: edit.title, shortcut: edit.shortcut || null, body: edit.body, department_id: edit.department_id || null, company_id: edit.company_id || null };
       if (edit.id) await api.patch(`/canned/${edit.id}`, payload);
       else await api.post('/canned', payload);
       qc.invalidateQueries({ queryKey: ['canned'] });
@@ -56,12 +56,12 @@ export default function CannedPage() {
                   <h3 className="font-bold">{c.title}</h3>
                   <div className="mt-0.5 flex items-center gap-2 text-[11px] text-slate-400">
                     {c.shortcut && <code className="rounded bg-slate-100 px-1 dark:bg-slate-800">/{c.shortcut}</code>}
-                    <span>{c.department_name || 'همه بخش‌ها'}</span>
+                    <span>{c.company_name || 'همه شرکت‌ها'} • {c.department_name || 'همه بخش‌ها'}</span>
                   </div>
                 </div>
                 <div className="flex gap-1">
                   <button className="btn-icon h-8 w-8" title="کپی" onClick={() => navigator.clipboard.writeText(c.body).then(() => toast.success('کپی شد'))}><Copy className="h-4 w-4" /></button>
-                  <button className="btn-icon h-8 w-8" onClick={() => setEdit({ id: c.id, title: c.title, shortcut: c.shortcut || '', body: c.body, department_id: c.department_id || null })}><Pencil className="h-4 w-4" /></button>
+                  <button className="btn-icon h-8 w-8" onClick={() => setEdit({ id: c.id, title: c.title, shortcut: c.shortcut || '', body: c.body, department_id: c.department_id || null, company_id: c.company_id || null })}><Pencil className="h-4 w-4" /></button>
                   <button className="btn-icon h-8 w-8 text-rose-500" onClick={() => setDel(c)}><Trash2 className="h-4 w-4" /></button>
                 </div>
               </div>
@@ -78,12 +78,20 @@ export default function CannedPage() {
               <div className="sm:col-span-2"><Field label="عنوان" required><input className="input" value={edit.title} onChange={(e) => setEdit({ ...edit, title: e.target.value })} /></Field></div>
               <Field label="میانبر" hint="مثلاً hi"><input className="input ltr" value={edit.shortcut} onChange={(e) => setEdit({ ...edit, shortcut: e.target.value })} dir="ltr" /></Field>
             </div>
-            <Field label="بخش">
-              <select className="input" value={edit.department_id || ''} onChange={(e) => setEdit({ ...edit, department_id: e.target.value ? Number(e.target.value) : null })}>
-                <option value="">همه بخش‌ها</option>
-                {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-              </select>
-            </Field>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="شرکت">
+                <select className="input" value={edit.company_id || ''} onChange={(e) => setEdit({ ...edit, company_id: e.target.value ? Number(e.target.value) : null, department_id: null })}>
+                  <option value="">همه شرکت‌ها</option>
+                  {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </Field>
+              <Field label="بخش">
+                <select className="input" value={edit.department_id || ''} onChange={(e) => setEdit({ ...edit, department_id: e.target.value ? Number(e.target.value) : null })}>
+                  <option value="">همه بخش‌ها</option>
+                  {departments.filter((d) => !edit.company_id || d.company_id === edit.company_id).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
+              </Field>
+            </div>
             <Field label="متن پاسخ" required><textarea className="input min-h-[180px]" value={edit.body} onChange={(e) => setEdit({ ...edit, body: e.target.value })} dir="auto" /></Field>
           </div>
         )}

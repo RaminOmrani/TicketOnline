@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Settings, Save, Upload, Trash2, Palette, FileUp, Mail, ShieldCheck, Ticket, X, Plus } from 'lucide-react';
+import { Settings, Save, Upload, Trash2, Palette, FileUp, Mail, ShieldCheck, Ticket } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '@/lib/api';
-import { faNum } from '@/lib/format';
 import { useConfig } from '@/store/config';
 import { Field, PageLoader, Spinner, Toggle } from '@/components/ui';
 import { Logo } from '@/components/Logo';
@@ -14,7 +13,6 @@ export default function AdminSettings() {
   const [s, setS] = useState<any>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [newProduct, setNewProduct] = useState('');
   const logoRef = useRef<HTMLInputElement>(null);
   useEffect(() => data && setS(data.settings), [data]);
   if (isLoading || !s) return <PageLoader />;
@@ -90,17 +88,11 @@ export default function AdminSettings() {
       </Section>
 
       <Section icon={<Ticket />} title="تیکت‌ها و محصولات">
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Field label="پیشوند شماره تیکت" hint={`مثال: ${s.ticket_prefix}-${faNum(Number(s.ticket_counter) + 1)}`}><input className="input ltr" value={s.ticket_prefix} onChange={(e) => set('ticket_prefix', e.target.value.toUpperCase())} dir="ltr" maxLength={6} /></Field>
+        <div className="grid gap-4 sm:grid-cols-2">
           <Field label="بستن خودکار پس از حل (روز)" hint="۰ = غیرفعال"><input className="input ltr" type="number" min={0} value={s.auto_close_resolved_days} onChange={(e) => set('auto_close_resolved_days', Number(e.target.value))} /></Field>
           <Field label="مهلت بازگشایی تیکت بسته (روز)"><input className="input ltr" type="number" min={1} value={s.reopen_window_days} onChange={(e) => set('reopen_window_days', Number(e.target.value))} /></Field>
         </div>
-        <Field label="محصولات / ماژول‌ها" hint="در فرم ثبت تیکت به مشتری نمایش داده می‌شود.">
-          <div className="flex flex-wrap gap-1.5">
-            {(s.products || []).map((p: string) => <span key={p} className="chip bg-slate-100 dark:bg-slate-800">{p}<button onClick={() => set('products', s.products.filter((x: string) => x !== p))} className="hover:text-rose-600"><X className="h-3 w-3" /></button></span>)}
-          </div>
-          <div className="mt-2 flex gap-1"><input className="input" placeholder="محصول جدید…" value={newProduct} onChange={(e) => setNewProduct(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (newProduct.trim()) { set('products', [...s.products, newProduct.trim()]); setNewProduct(''); } } }} /><button className="btn-secondary" onClick={() => { if (newProduct.trim()) { set('products', [...s.products, newProduct.trim()]); setNewProduct(''); } }}><Plus className="h-4 w-4" /></button></div>
-        </Field>
+        <p className="rounded-xl bg-slate-50 p-3 text-xs text-slate-500 dark:bg-slate-800">محصولات، ساعت کاری و پیشوند شماره تیکت برای هر شرکت جداگانه در صفحه «شرکت‌ها و برندها» تنظیم می‌شود.</p>
         <Field label="ضریب SLA بر اساس اولویت" hint="مهلت بخش × ضریب. مثلاً فوری ۰٫۲۵ یعنی یک‌چهارم زمان عادی.">
           <div className="grid grid-cols-4 gap-2">
             {(['urgent', 'high', 'normal', 'low'] as const).map((k) => (
@@ -123,6 +115,8 @@ export default function AdminSettings() {
 
       <Section icon={<ShieldCheck />} title="دسترسی">
         <Toggle checked={!!s.allow_registration} onChange={(v) => set('allow_registration', v)} label="ثبت‌نام آزاد مشتریان" description="در صورت غیرفعال بودن، فقط مدیر می‌تواند کاربر بسازد." />
+        <Toggle checked={s.otp_login_enabled !== false} onChange={(v) => set('otp_login_enabled', v)} label="ورود با کد یک‌بارمصرف (OTP)" description="ارسال کد ۶ رقمی به موبایل (پیامک) یا ایمیل. برای پیامک باید کاوه‌نگار تنظیم شده باشد." />
+        <Toggle checked={s.password_login_enabled !== false} onChange={(v) => set('password_login_enabled', v)} label="ورود با رمز عبور" description="اگر خاموش شود، فقط ورود با کد یک‌بارمصرف فعال است." />
       </Section>
 
       <Section icon={<Mail />} title="کانال‌های اطلاع‌رسانی">

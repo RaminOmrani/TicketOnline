@@ -55,8 +55,8 @@ export function DeptIcon({ name, className }: { name?: string | null; className?
 export function DeptChip({ department, className }: { department?: Department | null; className?: string }) {
   if (!department) return null;
   return (
-    <span className={clsx('chip border', className)} style={{ color: department.color || '#A31A1A', borderColor: `${department.color || '#A31A1A'}33`, background: `${department.color || '#A31A1A'}12` }}>
-      <DeptIcon name={department.icon} className="h-3.5 w-3.5" />
+    <span className={clsx('chip border border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200', className)}>
+      <DeptIcon name={department.icon} className="h-3.5 w-3.5 text-brand" />
       {department.name}
     </span>
   );

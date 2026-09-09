@@ -8,7 +8,7 @@ export const DEFAULT_SETTINGS = {
   site_title: 'مرکز پشتیبانی میلیونر',
   tagline: 'پیشگام در حسابداری هوشمند ایران',
   logo: '',
-  brand_color: '#A31A1A',
+  brand_color: '#8B0000',
   support_email: 'info@softmiliac.com',
   support_phone: '051-38473801-4',
   website: 'https://softmiliac.com',
@@ -24,6 +24,8 @@ export const DEFAULT_SETTINGS = {
   ticket_counter: 1000,
   welcome_message: 'به مرکز پشتیبانی میلیونر خوش آمدید. برای دریافت پاسخ سریع‌تر، لطفاً بخش مرتبط را انتخاب کرده و تا حد امکان جزئیات (نسخه نرم‌افزار، تصویر خطا و مراحل بازتولید) را ارسال کنید.',
   reopen_window_days: 30,
+  otp_login_enabled: true,
+  password_login_enabled: true,
   notify_new_ticket_all_dept_agents: true,
   sla_priority_multiplier: { low: 2, normal: 1, high: 0.5, urgent: 0.25 },
 };
@@ -71,10 +73,18 @@ export function publicSettings() {
     allow_registration: s.allow_registration,
     welcome_message: s.welcome_message,
     reopen_window_days: s.reopen_window_days,
+    otp_login_enabled: s.otp_login_enabled,
+    password_login_enabled: s.password_login_enabled,
   };
 }
 
-export function nextTicketNumber() {
+export function nextTicketNumber(companyId) {
+  const c = companyId ? db.prepare('SELECT id, ticket_prefix, ticket_counter FROM companies WHERE id = ?').get(companyId) : null;
+  if (c) {
+    const next = (Number(c.ticket_counter) || 1000) + 1;
+    db.prepare('UPDATE companies SET ticket_counter = ? WHERE id = ?').run(next, c.id);
+    return `${c.ticket_prefix || 'TKT'}-${next}`;
+  }
   const prefix = getSetting('ticket_prefix');
   const current = Number(getSetting('ticket_counter')) || 1000;
   const next = current + 1;

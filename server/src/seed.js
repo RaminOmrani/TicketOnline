@@ -1,23 +1,70 @@
 import { db } from './db.js';
 import { hashPassword } from './lib/auth.js';
 import { setSetting, getSetting } from './lib/settings.js';
+import { DEFAULT_BUSINESS_HOURS } from './lib/businessHours.js';
 
 export function seed({ verbose = true } = {}) {
   const log = (...a) => verbose && console.log('[seed]', ...a);
 
-  const deptCount = db.prepare('SELECT COUNT(*) c FROM departments').get().c;
-  if (deptCount === 0) {
-    const ins = db.prepare('INSERT INTO departments (name, slug, description, icon, color, sort_order, sla_first_response_minutes, sla_resolve_minutes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
-    const depts = [
-      ['پشتیبانی فنی', 'technical', 'مشکلات نصب، اجرا، خطاها و راهنمایی استفاده از نرم‌افزار حسابداری میلیونر', 'wrench', '#A31A1A', 1, 120, 1440],
-      ['مالی و حسابداری', 'finance', 'سوالات حسابداری، صورت‌حساب، فاکتور، تمدید اشتراک و پرداخت', 'calculator', '#B45309', 2, 240, 2880],
-      ['برنامه‌نویسی و توسعه', 'development', 'گزارش باگ، درخواست قابلیت جدید، سفارشی‌سازی، API و یکپارچه‌سازی', 'code', '#6D1212', 3, 480, 7200],
-      ['فروش و تمدید', 'sales', 'خرید نسخه جدید، ارتقا، قیمت‌ها و مشاوره قبل از خرید', 'shopping-bag', '#C2410C', 4, 120, 1440],
-      ['آموزش', 'training', 'درخواست آموزش، ویدیوهای آموزشی و راهنمای کار با ماژول‌ها', 'graduation-cap', '#8A1C1C', 5, 480, 4320],
-      ['شکایات و پیشنهادات', 'feedback', 'انتقادات، شکایات و پیشنهادات برای بهبود خدمات', 'message-square-heart', '#9F1239', 6, 480, 4320],
+  /* ---------- Companies / brands ---------- */
+  const companyCount = db.prepare('SELECT COUNT(*) c FROM companies').get().c;
+  if (companyCount === 0) {
+    const ins = db.prepare('INSERT INTO companies (name, name_en, slug, description, color, sort_order, ticket_prefix, support_email, support_phone, website, business_hours) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    const hours = JSON.stringify(DEFAULT_BUSINESS_HOURS);
+    const companies = [
+      ['میلیونر', 'Millionaire', 'millionaire', 'نرم‌افزار حسابداری میلیونر', '#8B0000', 1, 'MLN', 'info@softmiliac.com', '051-38473801-4', 'https://softmiliac.com', hours],
+      ['CRM میلیونر', 'Millionaire CRM', 'crm', 'نرم‌افزار مدیریت ارتباط با مشتری', '#8B0000', 2, 'CRM', 'info@softmiliac.com', '051-38473801-4', 'https://softmiliac.com', hours],
+      ['منوکلاب', 'MenuClub', 'menuclub', 'منوی دیجیتال و باشگاه مشتریان', '#8B0000', 3, 'MNU', 'info@softmiliac.com', '051-38473801-4', '', hours],
+      ['شاپ مجهز', 'Shop Mojahaz', 'shop-mojahaz', 'تجهیزات و سخت‌افزار فروشگاهی', '#8B0000', 4, 'SHM', 'info@softmiliac.com', '051-38473801-4', '', hours],
     ];
-    depts.forEach((d) => ins.run(...d));
-    log('departments created');
+    companies.forEach((c) => ins.run(...c));
+    const insP = db.prepare('INSERT INTO products (company_id, name, sort_order) VALUES (?, ?, ?)');
+    const byslug = (slug) => db.prepare('SELECT id FROM companies WHERE slug = ?').get(slug).id;
+    [['millionaire', ['نرم‌افزار حسابداری فروشگاهی', 'نرم‌افزار حسابداری شرکتی', 'نرم‌افزار حسابداری پخش مویرگی', 'نرم‌افزار حسابداری پخش مواد غذایی', 'سایر']],
+     ['crm', ['CRM فروش', 'CRM پشتیبانی', 'سایر']],
+     ['menuclub', ['منوی دیجیتال', 'باشگاه مشتریان', 'سایر']],
+     ['shop-mojahaz', ['بارکدخوان', 'فیش‌پرینتر', 'صندوق فروشگاهی', 'کشوی پول', 'سایر']]].forEach(([slug, list]) => list.forEach((n, i) => insP.run(byslug(slug), n, i)));
+    log('companies created');
+  }
+
+  // Attach legacy rows (created before multi-company) to the first company
+  const firstCompany = db.prepare('SELECT id FROM companies ORDER BY sort_order, id LIMIT 1').get()?.id;
+  if (firstCompany) {
+    db.prepare('UPDATE departments SET company_id = ? WHERE company_id IS NULL').run(firstCompany);
+    db.prepare('UPDATE tickets SET company_id = (SELECT company_id FROM departments d WHERE d.id = tickets.department_id) WHERE company_id IS NULL').run();
+  }
+
+  /* ---------- Departments: every company gets a default set if it has none ---------- */
+  {
+    const ins = db.prepare('INSERT INTO departments (name, slug, description, icon, color, sort_order, sla_first_response_minutes, sla_resolve_minutes, company_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    const full = [
+      ['پشتیبانی فنی', 'technical', 'مشکلات نصب، اجرا، خطاها و راهنمایی استفاده', 'wrench', 1, 120, 1440],
+      ['مالی و حسابداری', 'finance', 'صورت‌حساب، فاکتور، تمدید اشتراک و پرداخت', 'calculator', 2, 240, 2880],
+      ['برنامه‌نویسی و توسعه', 'development', 'گزارش باگ، درخواست قابلیت جدید، سفارشی‌سازی و یکپارچه‌سازی', 'code', 3, 480, 7200],
+      ['فروش و تمدید', 'sales', 'خرید نسخه جدید، ارتقا، قیمت‌ها و مشاوره قبل از خرید', 'shopping-bag', 4, 120, 1440],
+      ['آموزش', 'training', 'درخواست آموزش، ویدیوهای آموزشی و راهنمای کار با ماژول‌ها', 'graduation-cap', 5, 480, 4320],
+      ['شکایات و پیشنهادات', 'feedback', 'انتقادات، شکایات و پیشنهادات برای بهبود خدمات', 'message-square-heart', 6, 480, 4320],
+    ];
+    const short = full.filter((d) => ['technical', 'finance', 'sales', 'feedback'].includes(d[1]));
+    const hw = [
+      ['پشتیبانی فنی و گارانتی', 'technical', 'خرابی دستگاه، راه‌اندازی، درایور و گارانتی', 'wrench', 1, 120, 2880],
+      ['مالی', 'finance', 'فاکتور، پرداخت و مرجوعی', 'calculator', 2, 240, 2880],
+      ['فروش', 'sales', 'استعلام قیمت، مشاوره خرید و سفارش', 'shopping-bag', 3, 120, 1440],
+      ['شکایات و پیشنهادات', 'feedback', 'انتقادات و پیشنهادات', 'message-square-heart', 4, 480, 4320],
+    ];
+    let created = 0;
+    for (const c of db.prepare('SELECT id, slug FROM companies ORDER BY sort_order').all()) {
+      const has = db.prepare('SELECT COUNT(*) c FROM departments WHERE company_id = ?').get(c.id).c;
+      if (has) continue;
+      const list = c.slug === 'millionaire' ? full : c.slug === 'shop-mojahaz' ? hw : short;
+      list.forEach((d) => {
+        let slug = `${c.slug}-${d[1]}`;
+        if (db.prepare('SELECT id FROM departments WHERE slug = ?').get(slug)) slug = `${slug}-${c.id}`;
+        ins.run(d[0], slug, d[2], d[3], '#8B0000', d[4], d[5], d[6], c.id);
+      });
+      created++;
+    }
+    if (created) log(`departments created for ${created} companies`);
   }
 
   const adminCount = db.prepare("SELECT COUNT(*) c FROM users WHERE role = 'admin'").get().c;

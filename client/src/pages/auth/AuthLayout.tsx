@@ -4,7 +4,7 @@ import { useConfig } from '@/store/config';
 import { faNum } from '@/lib/format';
 
 export function AuthLayout({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
-  const { settings, departments } = useConfig();
+  const { settings, companies } = useConfig();
   return (
     <div className="flex min-h-screen bg-white dark:bg-slate-950">
       {/* Brand panel — maroon like the softmiliac.com footer */}
@@ -32,11 +32,17 @@ export function AuthLayout({ title, subtitle, children }: { title: string; subti
               </li>
             ))}
           </ul>
-          {departments.length > 0 && (
-            <div className="mt-8 flex flex-wrap gap-2">
-              {departments.map((d) => (
-                <span key={d.id} className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs">{d.name}</span>
-              ))}
+          {companies.length > 0 && (
+            <div className="mt-8">
+              <div className="mb-2 text-xs text-white/70">پشتیبانی محصولات:</div>
+              <div className="flex flex-wrap gap-2">
+                {companies.map((c) => (
+                  <span key={c.id} className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs">
+                    {c.logo && <img src={c.logo} alt="" className="h-4 w-auto rounded bg-white/90 px-0.5" />}
+                    {c.name}
+                  </span>
+                ))}
+              </div>
             </div>
           )}
         </div>

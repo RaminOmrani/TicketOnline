@@ -1,6 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 64" width="240" height="64">
-  <path d="M10 54V10h9l13 20 13-20h9v44H44V28L32 46 20 28v26z" fill="#A31A1A"/>
-  <path d="M14 10l20 30" stroke="#fff" stroke-width="3"/>
-  <text x="232" y="26" text-anchor="end" font-family="Vazirmatn, Tahoma, sans-serif" font-size="13" fill="#A31A1A">گروه نرم‌افزاری</text>
-  <text x="232" y="54" text-anchor="end" font-family="Vazirmatn, Tahoma, sans-serif" font-size="28" font-weight="800" fill="#A31A1A">میلیونر</text>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 100" width="300" height="100"><g transform="translate(205 0) scale(0.95)"><path d="M8 90V10h18l24 30 24-30h18v80H74V38L50 68 26 38v52z" fill="#8B0000"/><path d="M26 10v80M74 10v80" fill="none" stroke="#fff" stroke-width="2" stroke-opacity="0.55"/></g><text x="190" y="40" text-anchor="end" font-family="Vazirmatn, Tahoma, sans-serif" font-size="17" font-weight="500" fill="#8B0000">گروه نرم افزاری</text><text x="190" y="84" text-anchor="end" font-family="Vazirmatn, Tahoma, sans-serif" font-size="40" font-weight="800" fill="#8B0000">میلیونر</text></svg>

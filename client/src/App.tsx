@@ -19,6 +19,7 @@ const CustomersPage = lazy(() => import('./pages/CustomersPage'));
 const CannedPage = lazy(() => import('./pages/CannedPage'));
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
 const AdminDepartments = lazy(() => import('./pages/admin/AdminDepartments'));
+const AdminCompanies = lazy(() => import('./pages/admin/AdminCompanies'));
 const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'));
 const AdminSettings = lazy(() => import('./pages/admin/AdminSettings'));
 const AdminKb = lazy(() => import('./pages/admin/AdminKb'));
@@ -63,6 +64,7 @@ export default function App() {
           <Route path="customers" element={<RequireRole roles={['agent', 'admin']}><CustomersPage /></RequireRole>} />
           <Route path="canned" element={<RequireRole roles={['agent', 'admin']}><CannedPage /></RequireRole>} />
           <Route path="admin" element={<RequireRole roles={['admin']}><AdminDashboard /></RequireRole>} />
+          <Route path="admin/companies" element={<RequireRole roles={['admin']}><AdminCompanies /></RequireRole>} />
           <Route path="admin/departments" element={<RequireRole roles={['admin']}><AdminDepartments /></RequireRole>} />
           <Route path="admin/users" element={<RequireRole roles={['admin']}><AdminUsers /></RequireRole>} />
           <Route path="admin/kb" element={<RequireRole roles={['admin']}><AdminKb /></RequireRole>} />

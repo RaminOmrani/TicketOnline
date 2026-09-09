@@ -1,4 +1,4 @@
-import { ArrowRightLeft, CheckCircle2, Clock, Flag, PlusCircle, RotateCcw, Star, Tag, UserCheck, UserX, AlertTriangle, Pencil, CalendarClock } from 'lucide-react';
+import { ArrowRightLeft, CheckCircle2, Clock, Flag, PlusCircle, RotateCcw, Star, Tag, UserCheck, UserX, AlertTriangle, Pencil, CalendarClock, Eye } from 'lucide-react';
 import { faNum, formatDateTime, timeAgo } from '@/lib/format';
 import { STATUS_META } from '@/components/tickets/badges';
 import type { TicketEvent } from '@/lib/types';
@@ -15,6 +15,8 @@ export function describeEvent(e: TicketEvent, customerView = false): { icon: Rea
       if (d.reopened) return { icon: <RotateCcw />, text: `${actor} تیکت را بازگشایی کرد`, color: 'text-amber-600' };
       return { icon: d.to === 'resolved' || d.to === 'closed' ? <CheckCircle2 /> : <ArrowRightLeft />, text: `${actor} وضعیت را به «${to}» تغییر داد`, color: d.to === 'resolved' ? 'text-emerald-600' : 'text-slate-600' };
     }
+    case 'agent_viewed':
+      return { icon: <Eye />, text: customerView ? 'کارشناس پشتیبانی تیکت شما را مشاهده کرد و در حال بررسی است' : `${actor} تیکت را مشاهده کرد`, color: 'text-brand' };
     case 'reopened':
       return { icon: <RotateCcw />, text: `${actor} با ارسال پیام، تیکت را بازگشایی کرد`, color: 'text-amber-600' };
     case 'assigned':
@@ -24,7 +26,7 @@ export function describeEvent(e: TicketEvent, customerView = false): { icon: Rea
     case 'priority_changed':
       return { icon: <Flag />, text: `${actor} اولویت را از «${d.from_label}» به «${d.to_label}» تغییر داد`, color: 'text-orange-600' };
     case 'department_changed':
-      return { icon: <ArrowRightLeft />, text: `${actor} تیکت را از بخش «${d.from}» به «${d.to}» ارجاع داد`, color: 'text-blue-600' };
+      return { icon: <ArrowRightLeft />, text: customerView ? `تیکت شما به بخش «${d.to}» ارجاع داده شد` : `${actor} تیکت را از بخش «${d.from}» به «${d.to}» ارجاع داد`, color: 'text-blue-600' };
     case 'subject_changed':
       return { icon: <Pencil />, text: `${actor} موضوع را به «${d.to}» تغییر داد`, color: 'text-slate-600' };
     case 'tags_changed':
