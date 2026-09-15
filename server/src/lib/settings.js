@@ -28,6 +28,13 @@ export const DEFAULT_SETTINGS = {
   password_login_enabled: true,
   status_url: '',
   status_label: 'وضعیت سرویس‌ها و اختلالات',
+  // SMS (admin panel; overrides SMS_* env vars) — never exposed publicly
+  sms_provider: '',
+  sms_api_key: '',
+  sms_username: '',
+  sms_password: '',
+  sms_sender: '',
+  sms_templates: { otp: '', ticket_created: '', ticket_reply: '', ticket_resolved: '', ticket_assigned: '' },
   notify_new_ticket_all_dept_agents: true,
   sla_priority_multiplier: { low: 2, normal: 1, high: 0.5, urgent: 0.25 },
 };

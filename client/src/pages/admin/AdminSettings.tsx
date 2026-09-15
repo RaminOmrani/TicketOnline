@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Settings, Save, Upload, Trash2, Palette, FileUp, Mail, ShieldCheck, Ticket } from 'lucide-react';
+import { Settings, Save, Upload, Trash2, Palette, FileUp, Mail, ShieldCheck, Ticket, MessageSquare, Send } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '@/lib/api';
 import { useConfig } from '@/store/config';
@@ -24,6 +24,8 @@ export default function AdminSettings() {
   const [s, setS] = useState<any>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [testMobile, setTestMobile] = useState('');
+  const [testing, setTesting] = useState(false);
   const logoRef = useRef<HTMLInputElement>(null);
   useEffect(() => data && setS(data.settings), [data]);
   if (isLoading || !s) return <PageLoader />;
@@ -123,30 +125,66 @@ export default function AdminSettings() {
 
       <Section icon={<ShieldCheck />} title="دسترسی">
         <Toggle checked={!!s.allow_registration} onChange={(v) => set('allow_registration', v)} label="ثبت‌نام آزاد مشتریان" description="در صورت غیرفعال بودن، فقط مدیر می‌تواند کاربر بسازد." />
-        <Toggle checked={s.otp_login_enabled !== false} onChange={(v) => set('otp_login_enabled', v)} label="ورود با کد یک‌بارمصرف (OTP)" description="ارسال کد ۶ رقمی به موبایل (پیامک) یا ایمیل. برای پیامک باید کاوه‌نگار تنظیم شده باشد." />
+        <Toggle checked={s.otp_login_enabled !== false} onChange={(v) => set('otp_login_enabled', v)} label="ورود با کد یک‌بارمصرف (OTP)" description="ارسال کد ۶ رقمی به موبایل (پیامک) یا ایمیل. برای پیامک، بخش «پیامک» همین صفحه را تنظیم کنید." />
         <Toggle checked={s.password_login_enabled !== false} onChange={(v) => set('password_login_enabled', v)} label="ورود با رمز عبور" description="اگر خاموش شود، فقط ورود با کد یک‌بارمصرف فعال است." />
       </Section>
 
       <Section icon={<Mail />} title="کانال‌های اطلاع‌رسانی">
-        <div className="grid gap-3 sm:grid-cols-2 text-sm">
-          <div className={`rounded-xl border p-3 ${data.channels.email ? 'border-emerald-200 bg-emerald-50 dark:bg-emerald-500/10' : 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800'}`}><div className="font-semibold">ایمیل (SMTP)</div><div className="text-xs text-slate-500">{data.channels.email ? 'فعال' : 'غیرفعال — متغیرهای SMTP_* را در فایل .env تنظیم کنید.'}</div></div>
-          <div className={`rounded-xl border p-3 ${data.channels.sms ? 'border-emerald-200 bg-emerald-50 dark:bg-emerald-500/10' : 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800'}`}><div className="font-semibold">پیامک ({data.channels.sms_provider === 'melipayamak' ? 'ملی‌پیامک' : data.channels.sms_provider === 'kavenegar' ? 'کاوه‌نگار' : 'ملی‌پیامک / کاوه‌نگار'})</div><div className="text-xs text-slate-500">{data.channels.sms ? 'فعال' : 'غیرفعال — در فایل .env مقدار SMS_PROVIDER=melipayamak و SMS_API_KEY را تنظیم کنید.'}</div></div>
+        <div className={`rounded-xl border p-3 text-sm ${data.channels.email ? 'border-emerald-200 bg-emerald-50 dark:bg-emerald-500/10' : 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800'}`}><div className="font-semibold">ایمیل (SMTP)</div><div className="text-xs text-slate-500">{data.channels.email ? 'فعال' : 'غیرفعال — متغیرهای SMTP_* را در فایل .env تنظیم کنید.'}</div></div>
+      </Section>
+
+      <Section icon={<MessageSquare />} title="پیامک (ملی‌پیامک / کاوه‌نگار)">
+        <div className={`rounded-xl border p-3 text-sm ${data.channels.sms ? 'border-emerald-200 bg-emerald-50 dark:bg-emerald-500/10' : 'border-amber-200 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10'}`}>
+          <div className="font-semibold">{data.channels.sms ? `پیامک فعال است (${data.channels.sms_provider === 'melipayamak' ? 'ملی‌پیامک' : 'کاوه‌نگار'})` : 'پیامک غیرفعال است'}</div>
+          <div className="text-xs text-slate-500">همه‌چیز را همین‌جا تنظیم و ذخیره کنید؛ نیازی به ویرایش فایل .env نیست. (اگر در .env هم مقداری باشد، مقدار پنل اولویت دارد.)</div>
         </div>
-        {data.channels.sms_templates && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="ارائه‌دهنده پیامک">
+            <select className="input" value={s.sms_provider || ''} onChange={(e) => set('sms_provider', e.target.value)}>
+              <option value="">غیرفعال</option>
+              <option value="melipayamak">ملی‌پیامک (melipayamak.com)</option>
+              <option value="kavenegar">کاوه‌نگار (kavenegar.com)</option>
+            </select>
+          </Field>
+          <Field label="کلید API" hint={s.sms_provider === 'melipayamak' ? 'کنسول ملی‌پیامک → منوی کاربری → «کلید API»' : 'از پنل ارائه‌دهنده'}>
+            <input className="input ltr" type="password" autoComplete="new-password" value={s.sms_api_key || ''} onChange={(e) => set('sms_api_key', e.target.value)} dir="ltr" placeholder={data.channels.sms_env?.api_key ? '(از فایل .env خوانده می‌شود)' : ''} />
+          </Field>
+          {s.sms_provider === 'melipayamak' && (
+            <>
+              <Field label="نام کاربری وب‌سرویس (اختیاری)" hint="فقط اگر به‌جای کلید API از وب‌سرویس قدیمی استفاده می‌کنید."><input className="input ltr" value={s.sms_username || ''} onChange={(e) => set('sms_username', e.target.value)} dir="ltr" /></Field>
+              <Field label="رمز وب‌سرویس (اختیاری)"><input className="input ltr" type="password" autoComplete="new-password" value={s.sms_password || ''} onChange={(e) => set('sms_password', e.target.value)} dir="ltr" /></Field>
+            </>
+          )}
+          <Field label="شماره خط ارسال" hint="فقط برای ارسال متن آزاد لازم است؛ ارسال با الگو به خط اختصاصی نیاز ندارد."><input className="input ltr" value={s.sms_sender || ''} onChange={(e) => set('sms_sender', e.target.value)} dir="ltr" placeholder="مثلاً 3000xxxx" /></Field>
+        </div>
+
+        {s.sms_provider === 'melipayamak' && data.channels.sms_templates && (
           <div>
-            <div className="mb-2 text-sm font-semibold">الگوهای پیامک (ملی‌پیامک)</div>
-            <p className="mb-2 text-xs text-slate-500">این متن‌ها را در پنل ملی‌پیامک → «خدمات» → «ارسال با الگو» ثبت کنید و پس از تأیید، کد الگو (bodyId) هر کدام را در فایل .env مقابل متغیر مربوطه بگذارید.</p>
-            <div className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 text-xs dark:divide-slate-800 dark:border-slate-700">
+            <div className="mb-1 text-sm font-semibold">الگوهای پیامک</div>
+            <p className="mb-3 text-xs leading-6 text-slate-500">هر متن را عیناً در پنل ملی‌پیامک → «خدمات» → «ارسال با الگو» ثبت کنید. بعد از تأیید، «کد الگو» (bodyId) هر ردیف را در کادر همان ردیف وارد و ذخیره کنید. تا وقتی کد الگو خالی باشد، همان متن به‌صورت آزاد از «شماره خط ارسال» فرستاده می‌شود.</p>
+            <div className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 dark:divide-slate-800 dark:border-slate-700">
               {Object.entries(data.channels.sms_templates as Record<string, { configured: boolean; text: string; env: string; args: string[] }>).map(([k, t]) => (
-                <div key={k} className="grid gap-1 px-3 py-2 sm:grid-cols-[180px_1fr_auto] sm:items-start">
-                  <code className="ltr text-[11px] text-slate-500">{t.env}</code>
-                  <pre className="whitespace-pre-wrap font-sans leading-6" dir="rtl">{t.text}</pre>
-                  <span className={t.configured ? 'text-emerald-600' : 'text-amber-600'}>{t.configured ? 'تنظیم شده' : 'کد الگو تنظیم نشده'}</span>
+                <div key={k} className="grid gap-2 px-3 py-3 sm:grid-cols-[1fr_170px] sm:items-center">
+                  <div>
+                    <div className="mb-1 text-[11px] font-bold text-slate-500">{{ otp: 'کد ورود یک‌بارمصرف', ticket_created: 'ثبت تیکت', ticket_reply: 'پاسخ کارشناس', ticket_resolved: 'حل تیکت', ticket_assigned: 'تخصیص به کارشناس' }[k as string] || k} <span className="font-normal text-slate-400">— متغیر {'{0}'}: {t.args.join('، ')}</span></div>
+                    <pre className="select-all whitespace-pre-wrap rounded-lg bg-slate-50 px-3 py-2 font-sans text-[13px] leading-6 dark:bg-slate-800" dir="rtl">{t.text}</pre>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[11px] text-slate-500">کد الگو (bodyId)</label>
+                    <input className="input ltr py-1.5 text-xs" value={s.sms_templates?.[k] || ''} onChange={(e) => set('sms_templates', { ...(s.sms_templates || {}), [k]: e.target.value.replace(/\D/g, '') })} dir="ltr" placeholder={data.channels.sms_env?.templates?.[k] ? 'از .env' : 'مثلاً 123456'} />
+                  </div>
                 </div>
               ))}
             </div>
           </div>
         )}
+
+        <div className="flex flex-wrap items-end gap-2 rounded-xl border border-dashed border-slate-300 p-3 dark:border-slate-700">
+          <Field label="ارسال پیامک آزمایشی" hint="ابتدا تنظیمات را ذخیره کنید؛ بعد یک پیامک تست (الگوی کد ورود) به این شماره ارسال می‌شود.">
+            <input className="input ltr w-48" value={testMobile} onChange={(e) => setTestMobile(e.target.value)} dir="ltr" placeholder="09xxxxxxxxx" />
+          </Field>
+          <button className="btn-secondary" disabled={testing || !testMobile} onClick={async () => { setTesting(true); try { const r = await api.post('/admin/settings/sms-test', { mobile: testMobile }); toast.success(r.used_template ? 'پیامک با الگو ارسال شد' : 'پیامک (متن آزاد) ارسال شد'); } catch (e: any) { toast.error(e.message); } finally { setTesting(false); } }}>{testing ? <Spinner className="h-4 w-4" /> : <Send className="h-4 w-4" />} ارسال تست</button>
+        </div>
       </Section>
 
       <div className="flex justify-end"><button className="btn-primary" onClick={save} disabled={saving}>{saving ? <Spinner className="h-4 w-4" /> : <Save className="h-4 w-4" />} ذخیره تغییرات</button></div>

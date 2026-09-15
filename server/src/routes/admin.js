@@ -10,7 +10,7 @@ import { requireRole, hashPassword, sanitizeUser, normalizeMobile } from '../lib
 import { validate, z, str, optStr, idParam, asyncHandler } from '../lib/validate.js';
 import { getAllSettings, setSetting, DEFAULT_SETTINGS } from '../lib/settings.js';
 import { onlineUserIds } from '../lib/realtime.js';
-import { sendEmail, emailLayout, emailEnabled, smsEnabled, SMS_TEMPLATES } from '../lib/notify.js';
+import { sendEmail, emailLayout, emailEnabled, smsEnabled, smsConfig, sendSms, SMS_TEMPLATES } from '../lib/notify.js';
 import { normalizeSchedule } from '../lib/businessHours.js';
 
 const router = Router();
@@ -342,7 +342,18 @@ router.delete('/users/:id', validate(idParam, 'params'), (req, res) => {
 
 /* =========== Settings =========== */
 router.get('/settings', (req, res) => {
-  res.json({ settings: getAllSettings(), channels: { email: emailEnabled(), sms: smsEnabled(), sms_provider: config.sms.provider || null, sms_templates: Object.fromEntries(Object.entries(SMS_TEMPLATES).map(([k, t]) => [k, { configured: !!config.sms.templates?.[k], text: t.text, args: t.args, env: t.env }])) }, defaults: DEFAULT_SETTINGS });
+  const sc = smsConfig();
+  res.json({
+    settings: getAllSettings(),
+    channels: {
+      email: emailEnabled(),
+      sms: smsEnabled(),
+      sms_provider: sc.provider || null,
+      sms_env: { provider: config.sms.provider || '', api_key: !!config.sms.apiKey, username: config.sms.username || '', sender: config.sms.sender || '', templates: config.sms.templates },
+      sms_templates: Object.fromEntries(Object.entries(SMS_TEMPLATES).map(([k, t]) => [k, { configured: !!sc.templates[k], text: t.text, args: t.args, env: t.env }])),
+    },
+    defaults: DEFAULT_SETTINGS,
+  });
 });
 
 const settingsSchema = z.object({
@@ -372,6 +383,12 @@ const settingsSchema = z.object({
   password_login_enabled: z.boolean().optional(),
   status_url: z.string().trim().max(300).refine((v) => !v || /^https?:\/\//.test(v), 'آدرس باید با http:// یا https:// شروع شود.').optional(),
   status_label: optStr(80).optional(),
+  sms_provider: z.enum(['', 'melipayamak', 'kavenegar']).optional(),
+  sms_api_key: z.string().trim().max(200).optional(),
+  sms_username: z.string().trim().max(100).optional(),
+  sms_password: z.string().trim().max(100).optional(),
+  sms_sender: z.string().trim().max(30).optional(),
+  sms_templates: z.object({ otp: z.string().trim().max(20), ticket_created: z.string().trim().max(20), ticket_reply: z.string().trim().max(20), ticket_resolved: z.string().trim().max(20), ticket_assigned: z.string().trim().max(20) }).partial().optional(),
   sla_priority_multiplier: z.object({ low: z.number().positive(), normal: z.number().positive(), high: z.number().positive(), urgent: z.number().positive() }).optional(),
 });
 
@@ -383,6 +400,19 @@ router.put('/settings', validate(settingsSchema), (req, res) => {
   db.prepare('INSERT INTO audit_log (actor_id, action, target, data, ip) VALUES (?, ?, ?, ?, ?)').run(req.user.id, 'settings_update', 'settings', JSON.stringify(Object.keys(req.body)), req.ip);
   res.json({ settings: getAllSettings() });
 });
+
+/* Send a test SMS with the current (saved) configuration */
+router.post('/settings/sms-test', validate(z.object({ mobile: str(10, 20), template: z.enum(['otp', 'ticket_created', 'ticket_reply', 'ticket_resolved', 'ticket_assigned']).optional() })), asyncHandler(async (req, res) => {
+  const mobile = normalizeMobile(req.body.mobile);
+  if (!mobile) return res.status(400).json({ error: 'شماره موبایل معتبر نیست.' });
+  if (!smsEnabled()) return res.status(400).json({ error: 'پیامک فعال نیست. ارائه‌دهنده و کلید API را ذخیره کنید.' });
+  const key = req.body.template || 'otp';
+  const arg = key === 'otp' ? '123456' : 'MLN-1001';
+  const text = SMS_TEMPLATES[key].text.replace('{0}', arg);
+  const ok = await sendSms(mobile, text, { template: key, args: [arg] });
+  if (!ok) return res.status(502).json({ error: 'ارسال ناموفق بود. کلید API، کد الگو و اعتبار پنل را بررسی کنید (جزئیات در لاگ سرور).' });
+  res.json({ ok: true, used_template: !!smsConfig().templates[key] });
+}));
 
 const brandingDir = path.join(config.dataDir, 'branding');
 fs.mkdirSync(brandingDir, { recursive: true });

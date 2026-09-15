@@ -21,10 +21,33 @@ function getTransporter() {
 }
 
 export const emailEnabled = () => !!config.smtp.host;
+
+/**
+ * Effective SMS configuration: values saved in the admin panel (settings table)
+ * take precedence over environment variables, so nothing needs to be edited in .env.
+ */
+export function smsConfig() {
+  const s = (k) => {
+    const v = getSetting(k);
+    return v === undefined || v === null ? '' : String(v).trim();
+  };
+  const tplSaved = getSetting('sms_templates') || {};
+  const templates = {};
+  for (const k of Object.keys(config.sms.templates || {})) templates[k] = String(tplSaved[k] || config.sms.templates[k] || '').trim();
+  return {
+    provider: s('sms_provider') || config.sms.provider || '',
+    apiKey: s('sms_api_key') || config.sms.apiKey || '',
+    username: s('sms_username') || config.sms.username || '',
+    password: s('sms_password') || config.sms.password || '',
+    sender: s('sms_sender') || config.sms.sender || '',
+    templates,
+  };
+}
+
 export const smsEnabled = () => {
-  const p = config.sms.provider;
-  if (p === 'kavenegar') return !!config.sms.apiKey;
-  if (p === 'melipayamak') return !!config.sms.apiKey || !!(config.sms.username && config.sms.password);
+  const c = smsConfig();
+  if (c.provider === 'kavenegar') return !!c.apiKey;
+  if (c.provider === 'melipayamak') return !!c.apiKey || !!(c.username && c.password);
   return false;
 };
 
@@ -89,7 +112,7 @@ export const SMS_TEMPLATES = {
 function templateId(key) {
   const t = SMS_TEMPLATES[key];
   if (!t) return null;
-  const v = (config.sms.templates || {})[key] || process.env[t.env];
+  const v = smsConfig().templates[key] || process.env[t.env];
   return v ? String(v).trim() : null;
 }
 
@@ -99,19 +122,21 @@ function cleanArg(a) {
 }
 
 async function sendKavenegar(mobile, text) {
-  const url = `https://api.kavenegar.com/v1/${encodeURIComponent(config.sms.apiKey)}/sms/send.json`;
+  const c = smsConfig();
+  const url = `https://api.kavenegar.com/v1/${encodeURIComponent(c.apiKey)}/sms/send.json`;
   const params = new URLSearchParams({ receptor: mobile, message: text });
-  if (config.sms.sender) params.set('sender', config.sms.sender);
+  if (c.sender) params.set('sender', c.sender);
   const res = await fetch(url, { method: 'POST', body: params, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
   return res.ok;
 }
 
 async function sendMelipayamak(mobile, text, tpl) {
+  const c = smsConfig();
   const bodyId = tpl?.template ? templateId(tpl.template) : null;
   const args = (tpl?.args || []).map(cleanArg);
   // 1) Pattern send through the shared service (no dedicated line needed)
-  if (bodyId && config.sms.apiKey) {
-    const res = await fetch(`https://console.melipayamak.com/api/send/shared/${encodeURIComponent(config.sms.apiKey)}`, {
+  if (bodyId && c.apiKey) {
+    const res = await fetch(`https://console.melipayamak.com/api/send/shared/${encodeURIComponent(c.apiKey)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ bodyId: Number(bodyId), to: mobile, args }),
@@ -122,11 +147,11 @@ async function sendMelipayamak(mobile, text, tpl) {
     return false;
   }
   // 2) Pattern send through the legacy REST API (username/password)
-  if (bodyId && config.sms.username && config.sms.password) {
+  if (bodyId && c.username && c.password) {
     const res = await fetch('https://rest.payamak-panel.com/api/SendSMS/BaseServiceNumber', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: config.sms.username, password: config.sms.password, text: args.join(';'), to: mobile, bodyId: Number(bodyId) }),
+      body: JSON.stringify({ username: c.username, password: c.password, text: args.join(';'), to: mobile, bodyId: Number(bodyId) }),
     });
     const data = await res.json().catch(() => ({}));
     if (res.ok && Number(data.RetStatus) === 1) return true;
@@ -134,22 +159,22 @@ async function sendMelipayamak(mobile, text, tpl) {
     return false;
   }
   // 3) Plain text (requires a dedicated sender line)
-  if (config.sms.apiKey) {
-    const res = await fetch(`https://console.melipayamak.com/api/send/simple/${encodeURIComponent(config.sms.apiKey)}`, {
+  if (c.apiKey) {
+    const res = await fetch(`https://console.melipayamak.com/api/send/simple/${encodeURIComponent(c.apiKey)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: config.sms.sender || undefined, to: mobile, text }),
+      body: JSON.stringify({ from: c.sender || undefined, to: mobile, text }),
     });
     const data = await res.json().catch(() => ({}));
     if (res.ok && (data.recId || data.status)) return true;
     console.error('melipayamak simple send failed:', res.status, data);
     return false;
   }
-  if (config.sms.username && config.sms.password) {
+  if (c.username && c.password) {
     const res = await fetch('https://rest.payamak-panel.com/api/SendSMS/SendSMS', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: config.sms.username, password: config.sms.password, from: config.sms.sender, to: mobile, text }),
+      body: JSON.stringify({ username: c.username, password: c.password, from: c.sender, to: mobile, text }),
     });
     const data = await res.json().catch(() => ({}));
     return res.ok && Number(data.RetStatus) === 1;
@@ -163,7 +188,7 @@ export async function sendSms(mobile, text, tpl = null) {
     return false;
   }
   try {
-    if (config.sms.provider === 'melipayamak') return await sendMelipayamak(mobile, text, tpl);
+    if (smsConfig().provider === 'melipayamak') return await sendMelipayamak(mobile, text, tpl);
     return await sendKavenegar(mobile, text);
   } catch (e) {
     console.error('sms send failed:', e.message);
