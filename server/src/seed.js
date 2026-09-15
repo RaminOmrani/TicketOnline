@@ -14,8 +14,8 @@ export function seed({ verbose = true } = {}) {
     const companies = [
       ['میلیونر', 'Millionaire', 'millionaire', 'نرم‌افزار حسابداری میلیونر', '#8B0000', 1, 'MLN', 'info@softmiliac.com', '051-38473801-4', 'https://softmiliac.com', hours],
       ['CRM میلیونر', 'Millionaire CRM', 'crm', 'نرم‌افزار مدیریت ارتباط با مشتری', '#8B0000', 2, 'CRM', 'info@softmiliac.com', '051-38473801-4', 'https://softmiliac.com', hours],
-      ['منوکلاب', 'MenuClub', 'menuclub', 'منوی دیجیتال و باشگاه مشتریان', '#8B0000', 3, 'MNU', 'info@softmiliac.com', '051-38473801-4', '', hours],
-      ['شاپ مجهز', 'Shop Mojahaz', 'shop-mojahaz', 'تجهیزات و سخت‌افزار فروشگاهی', '#8B0000', 4, 'SHM', 'info@softmiliac.com', '051-38473801-4', '', hours],
+      ['منوکلاب', 'MenuClub', 'menuclub', 'منوی دیجیتال و باشگاه مشتریان', '#2F3F8F', 3, 'MNU', 'info@softmiliac.com', '051-38473801-4', '', hours],
+      ['شاپ مجهز', 'Shop Mojahaz', 'shop-mojahaz', 'تجهیزات و سخت‌افزار فروشگاهی', '#1E6FD0', 4, 'SHM', 'info@softmiliac.com', '051-38473801-4', '', hours],
     ];
     companies.forEach((c) => ins.run(...c));
     const insP = db.prepare('INSERT INTO products (company_id, name, sort_order) VALUES (?, ?, ?)');
@@ -25,6 +25,12 @@ export function seed({ verbose = true } = {}) {
      ['menuclub', ['منوی دیجیتال', 'باشگاه مشتریان', 'سایر']],
      ['shop-mojahaz', ['بارکدخوان', 'فیش‌پرینتر', 'صندوق فروشگاهی', 'کشوی پول', 'سایر']]].forEach(([slug, list]) => list.forEach((n, i) => insP.run(byslug(slug), n, i)));
     log('companies created');
+  }
+
+  // Brand colours taken from the official logos — applied once to companies still on the default colour
+  const BRAND_COLORS = { menuclub: '#2F3F8F', 'shop-mojahaz': '#1E6FD0' };
+  for (const [slug, color] of Object.entries(BRAND_COLORS)) {
+    db.prepare("UPDATE companies SET color = ? WHERE slug = ? AND (color IS NULL OR color = '#8B0000')").run(color, slug);
   }
 
   // Attach legacy rows (created before multi-company) to the first company
