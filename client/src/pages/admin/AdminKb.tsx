@@ -10,8 +10,8 @@ import { ConfirmDialog, EmptyState, Field, Modal, Spinner, Tabs, Toggle } from '
 import { RichEditor } from '@/components/RichEditor';
 import type { KbArticle } from '@/lib/types';
 
-type Form = { id?: number; title: string; slug: string; summary: string; body: string; category: string; department_id: number | null; is_published: boolean; is_faq: boolean; cover_image: string | null };
-const empty: Form = { title: '', slug: '', summary: '', body: '', category: '', department_id: null, is_published: true, is_faq: false, cover_image: null };
+type Form = { id?: number; title: string; slug: string; summary: string; body: string; category: string; company_id: number | null; department_id: number | null; is_published: boolean; is_faq: boolean; cover_image: string | null };
+const empty: Form = { title: '', slug: '', summary: '', body: '', category: '', company_id: null, department_id: null, is_published: true, is_faq: false, cover_image: null };
 
 async function uploadImage(f: File): Promise<string> {
   const form = new FormData();
@@ -41,7 +41,7 @@ export default function AdminKb() {
     setTab('edit');
     // Legacy markdown articles are converted to HTML once they are edited in the new editor.
     const body = a.body_format === 'html' ? a.body : renderMarkdown(a.body);
-    setEdit({ id: a.id, title: a.title, slug: a.slug, summary: a.summary || '', body, category: a.category || '', department_id: a.department_id || null, is_published: !!a.is_published, is_faq: !!a.is_faq, cover_image: a.cover_image || null });
+    setEdit({ id: a.id, title: a.title, slug: a.slug, summary: a.summary || '', body, category: a.category || '', company_id: a.company_id || null, department_id: a.department_id || null, is_published: !!a.is_published, is_faq: !!a.is_faq, cover_image: a.cover_image || null });
   };
 
   const save = async () => {
@@ -96,7 +96,7 @@ export default function AdminKb() {
               <span className={a.is_published ? 'text-emerald-500' : 'text-slate-300'} title={a.is_published ? 'منتشر شده' : 'پیش‌نویس'}>{a.is_published ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}</span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 truncate font-semibold">{a.title}{!!a.is_faq && <span className="chip bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300"><HelpCircle className="h-3 w-3" /> متداول</span>}</div>
-                <div className="text-[11px] text-slate-400">{a.category || 'بدون دسته'} • {faNum(a.views)} بازدید • {timeAgo(a.updated_at)} • <span className="ltr">/kb/{a.slug}</span></div>
+                <div className="text-[11px] text-slate-400">{a.company_name || 'عمومی'}{a.department_name ? ` › ${a.department_name}` : ''} • {a.category || 'بدون دسته'} • {faNum(a.views)} بازدید • {timeAgo(a.updated_at)}</div>
               </div>
               <button className="btn-icon h-8 w-8" onClick={() => api.get(`/kb/${a.id}`, { count: 0 }).then((r) => openEdit(r.article))}><Pencil className="h-4 w-4" /></button>
               <button className="btn-icon h-8 w-8 text-rose-500" onClick={() => setDel(a)}><Trash2 className="h-4 w-4" /></button>
@@ -112,14 +112,18 @@ export default function AdminKb() {
               <Field label="عنوان" required><input className="input" value={edit.title} onChange={(e) => setEdit({ ...edit, title: e.target.value })} /></Field>
               <Field label="نامک (slug)" hint="خالی = ساخت خودکار"><input className="input ltr" value={edit.slug} onChange={(e) => setEdit({ ...edit, slug: e.target.value })} dir="ltr" /></Field>
               <Field label="دسته‌بندی"><input className="input" list="kb-cats" value={edit.category} onChange={(e) => setEdit({ ...edit, category: e.target.value })} /><datalist id="kb-cats">{data?.categories.map((c) => <option key={c.category} value={c.category} />)}</datalist></Field>
-              <Field label="بخش مرتبط" hint="در صفحه ثبت تیکت، مقالات همان بخش پیشنهاد می‌شود.">
-                <select className="input" value={edit.department_id || ''} onChange={(e) => setEdit({ ...edit, department_id: e.target.value ? Number(e.target.value) : null })}>
-                  <option value="">— همه بخش‌ها —</option>
-                  {companies.map((c) => (
-                    <optgroup key={c.id} label={c.name}>
-                      {departments.filter((d) => d.company_id === c.id).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                    </optgroup>
-                  ))}
+            </div>
+            <div className="grid gap-4 rounded-xl border border-slate-200 p-3 dark:border-slate-700 sm:grid-cols-2">
+              <Field label="شرکت / برند" hint="«عمومی» یعنی برای همه شرکت‌ها نمایش داده می‌شود.">
+                <select className="input" value={edit.company_id || ''} onChange={(e) => setEdit({ ...edit, company_id: e.target.value ? Number(e.target.value) : null, department_id: null })}>
+                  <option value="">— عمومی (همه شرکت‌ها) —</option>
+                  {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </Field>
+              <Field label="بخش مرتبط" hint="در مرحله راهنمای ثبت تیکت، به کاربران همین بخش نشان داده می‌شود.">
+                <select className="input" value={edit.department_id || ''} onChange={(e) => setEdit({ ...edit, department_id: e.target.value ? Number(e.target.value) : null })} disabled={!edit.company_id}>
+                  <option value="">{edit.company_id ? '— همه بخش‌های این شرکت —' : 'ابتدا شرکت را انتخاب کنید'}</option>
+                  {departments.filter((d) => d.company_id === edit.company_id).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </select>
               </Field>
             </div>

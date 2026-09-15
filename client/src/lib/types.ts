@@ -207,6 +207,8 @@ export interface KbArticle {
   category?: string | null;
   department_id?: number | null;
   department_name?: string | null;
+  company_id?: number | null;
+  company_name?: string | null;
   is_published: number;
   views: number;
   updated_at: string;

@@ -19,6 +19,7 @@ export default function KbArticlePage() {
       <div className="mb-3 flex items-center gap-2 text-sm">
         <Link to="/kb" className="btn-icon"><ArrowRight className="h-5 w-5" /></Link>
         <Link to="/kb" className="text-slate-500 hover:text-brand">راهنما</Link>
+        {a.company_name && <><span className="text-slate-300">/</span><Link to={`/kb?company=${a.company_id}`} className="text-slate-500 hover:text-brand">{a.company_name}</Link></>}
         {a.category && <><span className="text-slate-300">/</span><span className="text-slate-500">{a.category}</span></>}
         {isStaff && <Link to={`/admin/kb?edit=${a.id}`} className="btn-ghost btn-sm mr-auto"><Pencil className="h-3.5 w-3.5" /> ویرایش</Link>}
       </div>
@@ -29,7 +30,7 @@ export default function KbArticlePage() {
           <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
             <span className="inline-flex items-center gap-1"><Eye className="h-3 w-3" />{faNum(a.views)} بازدید</span>
             <span className="inline-flex items-center gap-1"><Clock className="h-3 w-3" />به‌روزرسانی: {formatDate(a.updated_at)}</span>
-            {a.department_name && <span>بخش: {a.department_name}</span>}
+            {(a.company_name || a.department_name) && <span>{a.company_name || ''}{a.department_name ? ` › ${a.department_name}` : ''}</span>}
           </div>
           {a.summary && <p className="mt-4 rounded-xl bg-slate-50 p-3 text-sm leading-7 text-slate-600 dark:bg-slate-800 dark:text-slate-300">{a.summary}</p>}
           <div className="prose-fa mt-4" dangerouslySetInnerHTML={{ __html: renderArticle(a.body, a.body_format) }} />

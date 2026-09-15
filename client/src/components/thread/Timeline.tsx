@@ -45,10 +45,14 @@ export function describeEvent(e: TicketEvent, customerView = false): { icon: Rea
 export function EventLine({ e, customerView }: { e: TicketEvent; customerView?: boolean }) {
   const { icon, text, color } = describeEvent(e, customerView);
   return (
-    <div className="flex items-center justify-center gap-2 text-[11.5px] text-slate-500" title={formatDateTime(e.created_at)}>
-      <span className={`[&>svg]:h-3.5 [&>svg]:w-3.5 ${color}`}>{icon}</span>
-      <span>{text}</span>
-      <span className="text-slate-400">— {timeAgo(e.created_at)}</span>
+    <div className="flex items-center gap-3 text-[11.5px] text-slate-500" title={formatDateTime(e.created_at)}>
+      <span className="h-px flex-1 bg-gradient-to-l from-slate-200/0 via-slate-300/70 to-slate-200/0 dark:via-slate-600/60" />
+      <span className="flex shrink-0 items-center gap-2 rounded-full bg-slate-50 px-3 py-1 dark:bg-slate-800/70">
+        <span className={`[&>svg]:h-3.5 [&>svg]:w-3.5 ${color}`}>{icon}</span>
+        <span>{text}</span>
+        <span className="text-slate-400">— {timeAgo(e.created_at)}</span>
+      </span>
+      <span className="h-px flex-1 bg-gradient-to-r from-slate-200/0 via-slate-300/70 to-slate-200/0 dark:via-slate-600/60" />
     </div>
   );
 }

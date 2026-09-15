@@ -46,7 +46,20 @@ export default function TicketsPage() {
   useEffect(() => set('q', dq), [dq]);
 
   const view = (get('view') || 'all') as any;
-  const query = useMemo(() => ({ view: view === 'all' ? undefined : view, status: get('status'), priority: get('priority'), department_id: get('department_id'), company_id: get('company_id'), assignee_id: get('assignee_id'), customer_id: get('customer_id'), q: get('q'), sort: get('sort') || 'updated', page: get('page') || 1, per_page: 20 }), [params]);
+  const query = useMemo(() => ({ view: view === 'all' ? undefined : view, status: get('status'), priority: get('priority'), department_id: get('department_id'), company_id: get('company_id'), assignee_id: get('assignee_id'), customer_id: get('customer_id'), q: get('q'), sort: get('sort') || 'updated', order: get('order') || undefined, page: get('page') || 1, per_page: 20 }), [params]);
+  const sortKey = get('sort') || 'updated';
+  const DEFAULT_ASC = new Set(['priority', 'due', 'status', 'subject', 'company', 'department', 'customer', 'assignee']);
+  const sortOrder = ((get('order') || (DEFAULT_ASC.has(sortKey) ? 'asc' : 'desc')) as 'asc' | 'desc');
+  const toggleSort = (k: string) => {
+    const p = new URLSearchParams(params);
+    if (sortKey === k) p.set('order', sortOrder === 'asc' ? 'desc' : 'asc');
+    else {
+      p.set('sort', k);
+      p.delete('order');
+    }
+    p.delete('page');
+    setParams(p, { replace: true });
+  };
   const { data, isLoading } = useQuery<ListResp>({ queryKey: ['tickets', query], queryFn: () => api.get('/tickets', query), placeholderData: (prev) => prev });
   const { data: summary } = useQuery({ queryKey: ['summary'], queryFn: () => api.get('/tickets/summary') });
   const { data: staff } = useQuery({ queryKey: ['staff'], queryFn: () => api.get<{ items: User[] }>('/admin/staff'), enabled: isStaff });
@@ -137,9 +150,11 @@ export default function TicketsPage() {
               {staff?.items.filter((s) => s.id !== user?.id).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           )}
-          <select className="input" value={get('sort') || 'updated'} onChange={(e) => set('sort', e.target.value)}>
+          <select className="input" value={sortKey} onChange={(e) => { const p = new URLSearchParams(params); p.set('sort', e.target.value); p.delete('order'); p.delete('page'); setParams(p, { replace: true }); }}>
             <option value="updated">آخرین به‌روزرسانی</option>
             <option value="created">تاریخ ایجاد</option>
+            <option value="number">شماره تیکت</option>
+            <option value="status">وضعیت</option>
             <option value="priority">اولویت</option>
             {isStaff && <option value="due">مهلت پاسخ‌گویی</option>}
           </select>
@@ -159,7 +174,7 @@ export default function TicketsPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          <TicketTable items={data.items} staff={isStaff} />
+          <TicketTable items={data.items} staff={isStaff} sort={sortKey} order={sortOrder} onSort={toggleSort} />
           <Pagination page={data.page} pages={data.pages} total={data.total} onChange={(p) => set('page', String(p))} />
         </div>
       )}

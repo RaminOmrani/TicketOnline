@@ -65,7 +65,7 @@ router.get(
       customer_id: z.coerce.number().int().optional(),
       q: z.string().trim().max(200).optional(),
       view: z.enum(['all', 'mine', 'unassigned', 'open', 'unread', 'overdue', 'resolved', 'closed']).optional(),
-      sort: z.enum(['updated', 'created', 'priority', 'due']).optional(),
+      sort: z.enum(['updated', 'created', 'priority', 'due', 'number', 'status', 'subject', 'company', 'department', 'customer', 'assignee']).optional(),
       order: z.enum(['asc', 'desc']).optional(),
       page: z.coerce.number().int().min(1).default(1),
       per_page: z.coerce.number().int().min(5).max(100).default(20),
@@ -164,9 +164,16 @@ router.get(
       created: 't.created_at',
       priority: "CASE t.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END",
       due: 't.due_at',
+      number: 't.id',
+      status: "CASE t.status WHEN 'open' THEN 0 WHEN 'in_progress' THEN 1 WHEN 'waiting_customer' THEN 2 WHEN 'resolved' THEN 3 ELSE 4 END",
+      subject: 't.subject COLLATE NOCASE',
+      company: '(SELECT name FROM companies co WHERE co.id = t.company_id)',
+      department: '(SELECT name FROM departments d WHERE d.id = t.department_id)',
+      customer: 'c.name COLLATE NOCASE',
+      assignee: '(SELECT name FROM users a WHERE a.id = t.assignee_id)',
     };
     const sortCol = sortMap[q.sort || 'updated'];
-    const order = (q.order || (q.sort === 'priority' || q.sort === 'due' ? 'asc' : 'desc')).toUpperCase();
+    const order = (q.order || (['priority', 'due', 'status', 'subject', 'company', 'department', 'customer', 'assignee'].includes(q.sort) ? 'asc' : 'desc')).toUpperCase();
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
     const base = `FROM tickets t JOIN users c ON c.id = t.customer_id ${whereSql}`;
     const total = db.prepare(`SELECT COUNT(*) c ${base}`).get(...params).c;

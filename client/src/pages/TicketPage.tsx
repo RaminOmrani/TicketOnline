@@ -1,14 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowRight, Lock, RotateCcw, Info, Trash2, Printer, Eye, PlusCircle, Lock as LockIcon } from 'lucide-react';
+import { ArrowRight, Lock, RotateCcw, Info, Trash2, Printer, PlusCircle, Lock as LockIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '@/lib/api';
 import { getSocket } from '@/lib/socket';
 import { formatDayHeading } from '@/lib/format';
 import { useAuth } from '@/store/auth';
 import { PageLoader, EmptyState, ConfirmDialog, Modal } from '@/components/ui';
-import { StatusBadge } from '@/components/tickets/badges';
 import { TicketSidebar } from '@/components/tickets/TicketSidebar';
 import { MessageBubble, EditMessageBox } from '@/components/thread/MessageBubble';
 import { EventLine } from '@/components/thread/Timeline';
@@ -107,10 +106,6 @@ export default function TicketPage() {
             <button className="btn-icon shrink-0 no-print" onClick={() => navigate('/tickets')} aria-label="بازگشت"><ArrowRight className="h-5 w-5" /></button>
             <div className="min-w-0 flex-1">
               <h1 className="text-right text-lg font-extrabold leading-8 sm:text-xl" dir="rtl"><bdi>{ticket.subject}</bdi></h1>
-              <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                <StatusBadge status={ticket.status} customerView={isCustomer} />
-                {isCustomer && ticket.agent_viewed && !['resolved', 'closed'].includes(ticket.status) && <span className="chip bg-brand/10 text-brand"><Eye className="h-3 w-3" /> کارشناس در حال بررسی</span>}
-              </div>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-1.5 no-print sm:shrink-0">

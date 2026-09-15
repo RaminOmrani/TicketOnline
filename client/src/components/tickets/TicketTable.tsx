@@ -1,6 +1,6 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
-import { Paperclip, AlertTriangle } from 'lucide-react';
+import { Paperclip, AlertTriangle, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import { faNum, formatDateTime, timeAgo, formatShortDate, formatTime } from '@/lib/format';
 import { Avatar } from '@/components/ui';
 import { StatusBadge, PriorityBadge, DeptIcon } from './badges';
@@ -23,12 +23,36 @@ function DateCell({ iso, relative }: { iso?: string | null; relative?: boolean }
   );
 }
 
+export type SortKey = 'number' | 'subject' | 'customer' | 'company' | 'department' | 'created' | 'updated' | 'assignee' | 'status';
+
+interface TableProps {
+  items: Ticket[];
+  staff: boolean;
+  sort?: string;
+  order?: 'asc' | 'desc';
+  onSort?: (key: SortKey) => void;
+}
+
+function Th({ label, k, sort, order, onSort }: { label: string; k: SortKey; sort?: string; order?: 'asc' | 'desc'; onSort?: (k: SortKey) => void }) {
+  const active = sort === k;
+  return (
+    <th className="px-4 py-2.5 text-right font-bold">
+      <button type="button" onClick={() => onSort?.(k)} className={clsx('group/th inline-flex items-center gap-1 rounded-md px-1 py-0.5 transition hover:text-brand', active && 'text-brand')} title="مرتب‌سازی">
+        {label}
+        {active ? (order === 'asc' ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />) : <ChevronsUpDown className="h-3.5 w-3.5 opacity-0 transition group-hover/th:opacity-60" />}
+      </button>
+    </th>
+  );
+}
+
 /**
  * Ticket list in the classic "portal" layout (like hub.iranserver.com): one clean
- * row per ticket with clearly separated columns. Falls back to stacked cards on
- * small screens.
+ * row per ticket with clearly separated columns. Whole row opens the ticket;
+ * column headers sort. Falls back to stacked cards on small screens.
  */
-export function TicketTable({ items, staff }: { items: Ticket[]; staff: boolean }) {
+export function TicketTable({ items, staff, sort, order, onSort }: TableProps) {
+  const navigate = useNavigate();
+  const h = { sort, order, onSort };
   return (
     <div className="card overflow-hidden">
       {/* ---- Desktop table ---- */}
@@ -36,22 +60,28 @@ export function TicketTable({ items, staff }: { items: Ticket[]; staff: boolean 
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50/80 text-[12px] font-bold text-slate-500 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-400">
-              <th className="px-4 py-3 text-right font-bold">شماره تیکت</th>
-              <th className="px-4 py-3 text-right font-bold">عنوان تیکت</th>
-              {staff && <th className="px-4 py-3 text-right font-bold">مشتری</th>}
-              <th className="px-4 py-3 text-right font-bold">شرکت / محصول</th>
-              <th className="px-4 py-3 text-right font-bold">واحد</th>
-              <th className="px-4 py-3 text-right font-bold">تاریخ ایجاد</th>
-              <th className="px-4 py-3 text-right font-bold">آخرین به‌روزرسانی</th>
-              {staff && <th className="px-4 py-3 text-right font-bold">کارشناس</th>}
-              <th className="px-4 py-3 text-right font-bold">وضعیت</th>
+              <Th label="شماره تیکت" k="number" {...h} />
+              <Th label="عنوان تیکت" k="subject" {...h} />
+              {staff && <Th label="مشتری" k="customer" {...h} />}
+              <Th label="شرکت / محصول" k="company" {...h} />
+              <Th label="واحد" k="department" {...h} />
+              <Th label="تاریخ ایجاد" k="created" {...h} />
+              <Th label="آخرین به‌روزرسانی" k="updated" {...h} />
+              {staff && <Th label="کارشناس" k="assignee" {...h} />}
+              <Th label="وضعیت" k="status" {...h} />
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {items.map((t) => {
               const unread = t.unread > 0;
               return (
-                <tr key={t.id} className={clsx('group transition hover:bg-brand/[0.035] dark:hover:bg-brand/10', unread && 'bg-brand/[0.03] dark:bg-brand/[0.08]')}>
+                <tr
+                  key={t.id}
+                  onClick={(e) => { if ((e.target as HTMLElement).closest('a')) return; navigate(`/tickets/${t.id}`); }}
+                  onKeyDown={(e) => e.key === 'Enter' && navigate(`/tickets/${t.id}`)}
+                  tabIndex={0}
+                  className={clsx('group cursor-pointer transition hover:bg-brand/[0.035] focus:outline-none focus-visible:bg-brand/[0.06] dark:hover:bg-brand/10', unread && 'bg-brand/[0.03] dark:bg-brand/[0.08]')}
+                >
                   <td className="px-4 py-3.5 align-top">
                     <Link to={`/tickets/${t.id}`} className="num font-mono text-[13px] font-semibold text-slate-700 hover:text-brand dark:text-slate-200">
                       <bdi dir="ltr">{faNum(t.number)}</bdi>

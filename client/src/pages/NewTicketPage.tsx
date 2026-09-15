@@ -28,28 +28,33 @@ function useDebounced<T>(v: T, ms = 300) {
 }
 
 /* ---------- Step 1: FAQ + knowledge base search ---------- */
-function FaqStep({ onContinue }: { onContinue: () => void }) {
+function FaqStep({ companyId, deptId, companyName, deptName, onContinue, onBack }: { companyId: number; deptId: number; companyName?: string; deptName?: string; onContinue: () => void; onBack: () => void }) {
   const [q, setQ] = useState('');
   const dq = useDebounced(q);
-  const { data: faq } = useQuery({ queryKey: ['kb', 'faq'], queryFn: () => api.get<{ items: KbArticle[] }>('/kb', { faq: 1, limit: 8 }) });
-  const { data: popular } = useQuery({ queryKey: ['kb', 'popular'], queryFn: () => api.get<{ items: KbArticle[] }>('/kb', { sort: 'views', limit: 8 }), enabled: !!faq && faq.items.length === 0 });
-  const { data: results, isFetching } = useQuery({ queryKey: ['kb', 'search', dq], queryFn: () => api.get<{ items: KbArticle[] }>('/kb', { q: dq, limit: 8 }), enabled: dq.trim().length >= 2 });
-  const list = (dq.trim().length >= 2 ? results?.items : faq?.items?.length ? faq.items : popular?.items) || [];
+  // Articles of this department first, then company-wide, then general ones.
+  const { data: faq, isLoading } = useQuery({ queryKey: ['kb', 'scoped', companyId, deptId], queryFn: () => api.get<{ items: KbArticle[] }>('/kb', { company_id: companyId, department_id: deptId, limit: 8 }) });
+  const { data: results, isFetching } = useQuery({ queryKey: ['kb', 'search', companyId, dq], queryFn: () => api.get<{ items: KbArticle[] }>('/kb', { q: dq, company_id: companyId, limit: 8 }), enabled: dq.trim().length >= 2 });
   const searching = dq.trim().length >= 2;
+  const list = (searching ? results?.items : faq?.items) || [];
+  // Nothing written for this department yet → go straight to the form.
+  useEffect(() => {
+    if (faq && faq.items.length === 0) onContinue();
+  }, [faq]);
+  if (isLoading || (faq && faq.items.length === 0)) return <div className="card p-6 text-center text-sm text-slate-400"><Spinner className="mx-auto h-5 w-5" /></div>;
 
   return (
     <div className="card p-5 sm:p-7 animate-fade-in">
       <div className="flex items-start gap-3">
         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-600 dark:bg-amber-500/15"><HelpCircle className="h-6 w-6" /></span>
-        <div>
+        <div className="min-w-0 flex-1">
           <h2 className="text-lg font-extrabold">شاید پاسخ شما همین‌جا باشد</h2>
-          <p className="mt-1 text-sm leading-6 text-slate-500">پیش از ثبت تیکت، سوالات متداول را ببینید یا در پایگاه دانش جستجو کنید. اگر پاسخ نگرفتید، تیکت ثبت کنید تا کارشناسان پاسخ دهند.</p>
+          <p className="mt-1 text-sm leading-6 text-slate-500">راهنما و سوالات متداول <span className="font-bold text-slate-700 dark:text-slate-200">{deptName}</span>{companyName ? ` (${companyName})` : ''}. اگر پاسخ نگرفتید، تیکت ثبت کنید تا کارشناسان همین بخش پاسخ دهند.</p>
         </div>
+        <button type="button" className="btn-secondary btn-sm shrink-0" onClick={onBack}>{deptName} <span className="text-brand">· تغییر</span></button>
       </div>
 
       <div className="mt-5">
-        <div className="mb-2 flex items-center gap-2 text-sm font-bold"><HelpCircle className="h-4 w-4 text-brand" /> سوالات متداول</div>
-        {list.length === 0 && !isFetching && !searching && <p className="text-xs text-slate-400">هنوز سوال متداولی ثبت نشده است.</p>}
+        <div className="mb-2 flex items-center justify-between text-sm font-bold"><span className="flex items-center gap-2"><HelpCircle className="h-4 w-4 text-brand" /> سوالات متداول و راهنمای {deptName}</span><Link to={`/kb?company=${companyId}`} target="_blank" className="text-xs font-normal text-brand hover:underline">راهنمای کامل {companyName}</Link></div>
         {!searching && (
           <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 dark:divide-slate-800 dark:border-slate-700">
             {list.map((a) => (
@@ -69,7 +74,7 @@ function FaqStep({ onContinue }: { onContinue: () => void }) {
       </div>
 
       <div className="mt-6">
-        <div className="mb-2 flex items-center gap-2 text-sm font-bold"><BookOpen className="h-4 w-4 text-brand" /> جستجو در پایگاه دانش</div>
+        <div className="mb-2 flex items-center gap-2 text-sm font-bold"><BookOpen className="h-4 w-4 text-brand" /> جستجو در راهنمای {companyName || 'پایگاه دانش'}</div>
         <SearchInput value={q} onChange={setQ} placeholder="مثلاً: پشتیبان‌گیری، فاکتور، خطای اتصال…" />
         {searching && (
           <div className="mt-3">
@@ -128,8 +133,8 @@ export default function NewTicketPage() {
   const { data: kbHints } = useQuery({ queryKey: ['kb-hint', dSubject], queryFn: () => api.get<{ items: any[] }>('/kb', { q: dSubject, limit: 3 }), enabled: dSubject.trim().length >= 4 });
 
   const hasCompanyStep = companies.length > 1;
-  // Staff and deep links (?department=…) skip the FAQ step.
-  const [step, setStep] = useState<Step>(() => (paramDept ? 'form' : paramCompany ? 'dept' : isStaff ? (companies.length > 1 ? 'company' : 'dept') : 'faq'));
+  // Order: company → department → FAQ of that department (customers only) → form.
+  const [step, setStep] = useState<Step>(() => (paramDept ? (isStaff ? 'form' : 'faq') : paramCompany ? 'dept' : companies.length > 1 ? 'company' : 'dept'));
 
   // Single company → auto select. Department from URL → infer company.
   useEffect(() => {
@@ -150,9 +155,8 @@ export default function NewTicketPage() {
     if (dept && !departments.some((d) => d.id === dept)) setDept(0);
   }, [companyId]);
 
-  const goAfterFaq = () => setStep(hasCompanyStep ? 'company' : 'dept');
   const pickCompany = (id: number) => { setCompanyId(id); setStep('dept'); };
-  const pickDept = (id: number) => { setDept(id); setStep('form'); };
+  const pickDept = (id: number) => { setDept(id); setStep(isStaff ? 'form' : 'faq'); };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -187,9 +191,9 @@ export default function NewTicketPage() {
   const err = (f: string) => (error.field === f ? error.message : undefined);
 
   const steps: { key: Step; label: string; icon: React.ReactNode }[] = [
-    ...(!isStaff ? [{ key: 'faq' as Step, label: 'راهنما', icon: <HelpCircle /> }] : []),
     ...(hasCompanyStep ? [{ key: 'company' as Step, label: 'شرکت', icon: <Building2 /> }] : []),
     { key: 'dept', label: 'بخش', icon: <LifeBuoy /> },
+    ...(!isStaff ? [{ key: 'faq' as Step, label: 'راهنما', icon: <HelpCircle /> }] : []),
     { key: 'form', label: 'شرح درخواست', icon: <FileText /> },
   ];
   const stepIndex = steps.findIndex((s) => s.key === step);
@@ -227,7 +231,7 @@ export default function NewTicketPage() {
 
       <div className="grid gap-5 lg:grid-cols-[1fr_300px]">
         <div className="min-w-0">
-          {step === 'faq' && <FaqStep onContinue={goAfterFaq} />}
+          {step === 'faq' && <FaqStep companyId={companyId} deptId={dept} companyName={company?.name} deptName={department?.name} onContinue={() => setStep('form')} onBack={() => setStep('dept')} />}
 
           {step === 'company' && (
             <div className="card p-5 sm:p-7 animate-fade-in">
@@ -382,8 +386,9 @@ export default function NewTicketPage() {
               )}
               {error.message && !error.field && <div className="rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{error.message}</div>}
 
-              <div className="flex items-center justify-between gap-2 pt-2">
-                <button type="button" className="btn-ghost" onClick={() => setStep('dept')} disabled={sending}><ChevronRight className="h-4 w-4" /> مرحله قبل</button>
+              {/* Sticky action bar: stays visible while the form scrolls */}
+              <div className="sticky bottom-0 -mx-5 -mb-5 flex items-center justify-between gap-2 rounded-b-2xl border-t border-slate-100 bg-white/90 px-5 py-3 backdrop-blur dark:border-slate-800 dark:bg-[#1c2029]/90 sm:-mx-7 sm:-mb-7 sm:px-7">
+                <button type="button" className="btn-ghost" onClick={() => setStep(isStaff ? 'dept' : 'faq')} disabled={sending}><ChevronRight className="h-4 w-4" /> مرحله قبل</button>
                 <div className="flex items-center gap-2">
                   <button type="button" className="btn-secondary" onClick={() => navigate(-1)} disabled={sending}>انصراف</button>
                   <button className="btn-primary px-6" disabled={sending}>

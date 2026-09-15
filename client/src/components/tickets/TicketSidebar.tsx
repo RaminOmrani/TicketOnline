@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import clsx from 'clsx';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Star, Mail, Phone, Building2, Clock, Tag, X, Plus, ExternalLink, History, CalendarClock, MessageSquare, Paperclip, Hash } from 'lucide-react';
+import { Star, Mail, Phone, Building2, Clock, Tag, X, Plus, ExternalLink, History, CalendarClock, MessageSquare, Paperclip } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { api } from '@/lib/api';
@@ -116,7 +116,7 @@ export function TicketSidebar({ ticket, events, customerStats }: Props) {
       <div className="card p-4">
         <h3 className="mb-1 text-sm font-bold">{isStaff ? 'مدیریت تیکت' : 'مشخصات تیکت'}</h3>
         <div className="divide-y divide-slate-100 dark:divide-slate-800">
-          <Row label="شماره تیکت"><span className="num inline-flex items-center gap-1 font-mono text-[13px] font-bold text-brand"><Hash className="h-3 w-3" /><bdi dir="ltr">{faNum(ticket.number)}</bdi></span></Row>
+          <Row label="شماره تیکت"><span className="num font-mono text-[13px] font-bold text-brand"><bdi dir="ltr">{faNum(ticket.number)}</bdi></span></Row>
           {!isStaff && <Row label="وضعیت"><StatusBadge status={ticket.status} customerView /></Row>}
           {!isStaff && <Row label="اولویت"><span className={PRIORITY_META[ticket.priority].color}>{PRIORITY_META[ticket.priority].label}</span></Row>}
           {ticket.company && <Row label="شرکت"><CompanyBadge company={ticket.company} /></Row>}

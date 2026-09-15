@@ -33,6 +33,9 @@ export function seed({ verbose = true } = {}) {
     db.prepare("UPDATE companies SET color = ? WHERE slug = ? AND (color IS NULL OR color = '#8B0000')").run(color, slug);
   }
 
+  // Articles tied to a department belong to that department's company
+  db.prepare('UPDATE kb_articles SET company_id = (SELECT company_id FROM departments d WHERE d.id = kb_articles.department_id) WHERE company_id IS NULL AND department_id IS NOT NULL').run();
+
   // Attach legacy rows (created before multi-company) to the first company
   const firstCompany = db.prepare('SELECT id FROM companies ORDER BY sort_order, id LIMIT 1').get()?.id;
   if (firstCompany) {

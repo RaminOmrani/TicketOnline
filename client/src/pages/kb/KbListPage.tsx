@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import clsx from 'clsx';
 import { BookOpen, Eye, FolderOpen, Clock, HelpCircle } from 'lucide-react';
@@ -16,6 +16,7 @@ export function ArticleCard({ a }: { a: KbArticle }) {
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-400">
           {a.category && <span className="chip bg-brand/10 text-brand">{a.category}</span>}
           {!!a.is_faq && <span className="chip bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300"><HelpCircle className="h-3 w-3" /> سوال متداول</span>}
+          {(a.company_name || a.department_name) && <span className="chip bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">{a.company_name}{a.department_name ? ` › ${a.department_name}` : ''}</span>}
           {!a.is_published && <span className="chip bg-slate-100 text-slate-500 dark:bg-slate-800">پیش‌نویس</span>}
           <span className="inline-flex items-center gap-1"><Eye className="h-3 w-3" />{faNum(a.views)} بازدید</span>
           <span className="mr-auto inline-flex items-center gap-1"><Clock className="h-3 w-3" />{timeAgo(a.updated_at)}</span>
@@ -28,9 +29,12 @@ export function ArticleCard({ a }: { a: KbArticle }) {
 }
 
 export default function KbListPage() {
+  const [params, setParams] = useSearchParams();
   const [q, setQ] = useState('');
   const [cat, setCat] = useState('');
-  const { data, isLoading } = useQuery({ queryKey: ['kb', q, cat], queryFn: () => api.get<{ items: KbArticle[]; categories: { category: string; c: number }[] }>('/kb', { q, category: cat }) });
+  const company = Number(params.get('company')) || 0;
+  const setCompany = (id: number) => { const p = new URLSearchParams(params); id ? p.set('company', String(id)) : p.delete('company'); setParams(p, { replace: true }); setCat(''); };
+  const { data, isLoading } = useQuery({ queryKey: ['kb', q, cat, company], queryFn: () => api.get<{ items: KbArticle[]; categories: { category: string; c: number }[]; companies: { id: number; name: string; logo?: string | null; c: number }[]; general: number }>('/kb', { q, category: cat, company_id: company || undefined }) });
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -44,6 +48,19 @@ export default function KbListPage() {
           <SearchInput value={q} onChange={setQ} placeholder="جستجو در مقالات…" />
         </div>
       </div>
+      {/* Company filter: each brand has its own guide; «همه» shows everything */}
+      {data && data.companies.length > 1 && (
+        <div className="mb-4 flex flex-wrap gap-2">
+          <button className={clsx('chip border px-3 py-1.5 text-[13px] transition', !company ? 'border-brand bg-brand text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-brand/50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300')} onClick={() => setCompany(0)}>همه راهنماها</button>
+          {data.companies.map((c) => (
+            <button key={c.id} className={clsx('chip border px-3 py-1.5 text-[13px] transition', company === c.id ? 'border-brand bg-brand text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-brand/50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300')} onClick={() => setCompany(c.id)}>
+              {c.logo && <img src={c.logo} alt="" className={clsx('h-4 w-auto rounded-sm', company === c.id && 'bg-white/90 px-0.5')} />}
+              {c.name}
+              <span className={clsx('rounded-full px-1.5 text-[10px]', company === c.id ? 'bg-white/20' : 'bg-slate-100 dark:bg-slate-700')}>{faNum(c.c + (data.general || 0))}</span>
+            </button>
+          ))}
+        </div>
+      )}
       <div className="grid gap-5 lg:grid-cols-[220px_1fr]">
         <aside className="card h-fit p-3">
           <div className="mb-1 px-2 text-xs font-bold text-slate-400">دسته‌بندی‌ها</div>

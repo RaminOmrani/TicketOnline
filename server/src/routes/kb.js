@@ -70,24 +70,44 @@ router.get('/', (req, res) => {
     params.push(req.query.category);
   }
   if (req.query.faq === '1') where.push('a.is_faq = 1');
-  if (req.query.department_id) {
-    where.push('(a.department_id = ? OR a.department_id IS NULL)');
-    params.push(Number(req.query.department_id) || 0);
+  const companyId = Number(req.query.company_id) || 0;
+  const deptId = Number(req.query.department_id) || 0;
+  // Scope: articles of this department, company-wide articles (no department) and global ones (no company).
+  if (deptId) {
+    where.push('(a.department_id = ? OR (a.department_id IS NULL AND (a.company_id IS NULL OR a.company_id = ?)))');
+    params.push(deptId, companyId || db.prepare('SELECT company_id FROM departments WHERE id = ?').get(deptId)?.company_id || 0);
+  } else if (companyId) {
+    where.push('(a.company_id = ? OR a.company_id IS NULL)');
+    params.push(companyId);
   }
-  const order = req.query.sort === 'views' ? 'a.views DESC, a.updated_at DESC' : 'a.is_faq DESC, a.category, a.updated_at DESC';
+  const orderParams = [];
+  let order;
+  if (req.query.sort === 'views') order = 'a.views DESC, a.updated_at DESC';
+  else if (deptId) {
+    order = 'CASE WHEN a.department_id = ? THEN 0 WHEN a.company_id IS NOT NULL THEN 1 ELSE 2 END, a.is_faq DESC, a.views DESC';
+    orderParams.push(deptId);
+  } else order = 'a.is_faq DESC, a.category, a.updated_at DESC';
   const limit = Math.min(200, Number(req.query.limit) || 200);
   const rows = db
-    .prepare(`SELECT a.id, a.title, a.slug, a.summary, a.category, a.department_id, a.is_published, a.is_faq, a.cover_image, a.views, a.updated_at, d.name AS department_name FROM kb_articles a LEFT JOIN departments d ON d.id = a.department_id WHERE ${where.join(' AND ')} ORDER BY ${order} LIMIT ?`)
-    .all(...params, limit);
-  const categories = db.prepare(`SELECT category, COUNT(*) c FROM kb_articles WHERE ${staff ? '1=1' : 'is_published = 1'} AND category IS NOT NULL AND category != '' GROUP BY category ORDER BY c DESC`).all();
-  res.json({ items: rows.map(shapeListRow), categories });
+    .prepare(`SELECT a.id, a.title, a.slug, a.summary, a.category, a.department_id, a.company_id, a.is_published, a.is_faq, a.cover_image, a.views, a.updated_at, d.name AS department_name, c.name AS company_name FROM kb_articles a LEFT JOIN departments d ON d.id = a.department_id LEFT JOIN companies c ON c.id = a.company_id WHERE ${where.join(' AND ')} ORDER BY ${order} LIMIT ?`)
+    .all(...params, ...orderParams, limit);
+  const catWhere = [staff ? '1=1' : 'is_published = 1', "category IS NOT NULL AND category != ''"];
+  const catParams = [];
+  if (companyId) {
+    catWhere.push('(company_id = ? OR company_id IS NULL)');
+    catParams.push(companyId);
+  }
+  const categories = db.prepare(`SELECT category, COUNT(*) c FROM kb_articles WHERE ${catWhere.join(' AND ')} GROUP BY category ORDER BY c DESC`).all(...catParams);
+  const companies = db.prepare(`SELECT c.id, c.name, c.logo, COUNT(a.id) c FROM companies c LEFT JOIN kb_articles a ON a.company_id = c.id ${staff ? '' : 'AND a.is_published = 1'} WHERE c.is_active = 1 GROUP BY c.id ORDER BY c.sort_order, c.id`).all();
+  const general = db.prepare(`SELECT COUNT(*) c FROM kb_articles WHERE company_id IS NULL ${staff ? '' : 'AND is_published = 1'}`).get().c;
+  res.json({ items: rows.map(shapeListRow), categories, companies, general });
 });
 
 router.get('/:slug', (req, res) => {
-  const a = db.prepare('SELECT a.*, d.name AS department_name FROM kb_articles a LEFT JOIN departments d ON d.id = a.department_id WHERE a.slug = ? OR a.id = ?').get(req.params.slug, Number(req.params.slug) || 0);
+  const a = db.prepare('SELECT a.*, d.name AS department_name, c.name AS company_name FROM kb_articles a LEFT JOIN departments d ON d.id = a.department_id LEFT JOIN companies c ON c.id = a.company_id WHERE a.slug = ? OR a.id = ?').get(req.params.slug, Number(req.params.slug) || 0);
   if (!a || (!a.is_published && !isStaff(req.user))) return res.status(404).json({ error: 'مقاله یافت نشد.' });
   if (req.query.count !== '0') db.prepare('UPDATE kb_articles SET views = views + 1 WHERE id = ?').run(a.id);
-  const related = db.prepare('SELECT id, title, slug, cover_image FROM kb_articles WHERE is_published = 1 AND id != ? AND (category = ? OR department_id = ?) ORDER BY views DESC LIMIT 5').all(a.id, a.category, a.department_id);
+  const related = db.prepare('SELECT id, title, slug, cover_image FROM kb_articles WHERE is_published = 1 AND id != ? AND (category = ? OR department_id = ? OR company_id = ?) ORDER BY views DESC LIMIT 5').all(a.id, a.category, a.department_id, a.company_id);
   res.json({ article: shapeListRow(a), related });
 });
 
@@ -99,10 +119,20 @@ const schema = z.object({
   body_format: z.enum(['markdown', 'html']).optional(),
   category: optStr(80),
   department_id: z.number().int().nullable().optional(),
+  company_id: z.number().int().nullable().optional(),
   is_published: z.boolean().optional(),
   is_faq: z.boolean().optional(),
   cover_image: z.string().max(300).nullable().optional(),
 });
+
+/** A department always belongs to a company; an article tied to a department inherits that company. */
+function resolveCompany(companyId, departmentId) {
+  if (departmentId) {
+    const d = db.prepare('SELECT company_id FROM departments WHERE id = ?').get(departmentId);
+    if (d?.company_id) return d.company_id;
+  }
+  return companyId || null;
+}
 
 function prepBody(b, fallbackFormat = 'markdown') {
   const format = b.body_format || fallbackFormat;
@@ -115,9 +145,10 @@ router.post('/', requireRole('agent', 'admin'), validate(schema), (req, res) => 
   let slug = b.slug || slugify(b.title);
   if (db.prepare('SELECT id FROM kb_articles WHERE slug = ?').get(slug)) slug = `${slug}-${Date.now().toString(36)}`;
   const { format, body } = prepBody(b, 'html');
+  const companyId = resolveCompany(b.company_id, b.department_id);
   const info = db
-    .prepare('INSERT INTO kb_articles (title, slug, summary, body, body_format, category, department_id, is_published, is_faq, cover_image, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-    .run(b.title, slug, b.summary, body, format, b.category, b.department_id || null, b.is_published === false ? 0 : 1, b.is_faq ? 1 : 0, b.cover_image || null, req.user.id);
+    .prepare('INSERT INTO kb_articles (title, slug, summary, body, body_format, category, department_id, company_id, is_published, is_faq, cover_image, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(b.title, slug, b.summary, body, format, b.category, b.department_id || null, companyId, b.is_published === false ? 0 : 1, b.is_faq ? 1 : 0, b.cover_image || null, req.user.id);
   res.status(201).json({ article: shapeListRow(db.prepare('SELECT * FROM kb_articles WHERE id = ?').get(info.lastInsertRowid)) });
 });
 
@@ -130,8 +161,9 @@ router.patch('/:id', requireRole('agent', 'admin'), validate(idParam, 'params'),
     if (exists) return res.status(409).json({ error: 'این نامک قبلاً استفاده شده است.' });
   }
   const { format, body } = req.body.body !== undefined || req.body.body_format ? prepBody({ body: b.body, body_format: b.body_format }, a.body_format) : { format: a.body_format, body: a.body };
-  db.prepare('UPDATE kb_articles SET title = ?, slug = ?, summary = ?, body = ?, body_format = ?, category = ?, department_id = ?, is_published = ?, is_faq = ?, cover_image = ?, updated_at = ? WHERE id = ?').run(
-    b.title, b.slug, b.summary, body, format, b.category, b.department_id || null, b.is_published, b.is_faq, req.body.cover_image === undefined ? a.cover_image : req.body.cover_image || null, now(), a.id
+  const companyId = req.body.company_id === undefined && req.body.department_id === undefined ? a.company_id : resolveCompany(b.company_id, b.department_id);
+  db.prepare('UPDATE kb_articles SET title = ?, slug = ?, summary = ?, body = ?, body_format = ?, category = ?, department_id = ?, company_id = ?, is_published = ?, is_faq = ?, cover_image = ?, updated_at = ? WHERE id = ?').run(
+    b.title, b.slug, b.summary, body, format, b.category, b.department_id || null, companyId, b.is_published, b.is_faq, req.body.cover_image === undefined ? a.cover_image : req.body.cover_image || null, now(), a.id
   );
   res.json({ article: shapeListRow(db.prepare('SELECT * FROM kb_articles WHERE id = ?').get(a.id)) });
 });
