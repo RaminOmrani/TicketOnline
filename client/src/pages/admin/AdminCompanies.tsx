@@ -71,11 +71,16 @@ export default function AdminCompanies() {
         {data?.items.map((c) => (
           <div key={c.id} className={clsx('card p-4', !c.is_active && 'opacity-60')}>
             <div className="flex items-start gap-3">
-              <button className="flex h-16 w-24 shrink-0 items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800" title="تغییر لوگو" onClick={() => { setLogoFor(c.id); logoRef.current?.click(); }}>
-                {c.logo ? <img src={c.logo} alt="" className="max-h-full max-w-full object-contain" /> : <LogoMark className="h-10 w-10" color="rgb(var(--brand-rgb))" />}
-              </button>
+              <div className="flex w-28 shrink-0 flex-col items-center gap-1.5">
+                <button className="flex h-16 w-28 items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white p-1.5 dark:border-slate-700 dark:bg-slate-800" title="تغییر لوگو" onClick={() => { setLogoFor(c.id); logoRef.current?.click(); }}>
+                  {c.logo ? <img src={c.logo} alt="" className="max-h-full max-w-full object-contain" /> : <LogoMark className="h-10 w-10" color={c.color || 'rgb(var(--brand-rgb))'} />}
+                </button>
+                <button className="btn-secondary btn-sm w-full !px-2 !text-[11px]" onClick={() => { setLogoFor(c.id); logoRef.current?.click(); }}><Upload className="h-3.5 w-3.5" /> {c.logo ? 'تغییر لوگو' : 'بارگذاری لوگو'}</button>
+                {c.logo && <button className="text-[11px] text-rose-500 hover:underline" onClick={async () => { try { await api.del(`/companies/${c.id}/logo`); refresh(); toast.success('لوگو حذف شد'); } catch (e: any) { toast.error(e.message); } }}>حذف لوگو</button>}
+              </div>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
+                  <span className="h-3.5 w-3.5 rounded-full ring-1 ring-black/10" style={{ background: c.color || '#8B0000' }} title="رنگ سازمانی" />
                   <h3 className="font-bold">{c.name}</h3>
                   {c.name_en && <span className="text-xs text-slate-400" dir="ltr">{c.name_en}</span>}
                   <span className="chip bg-slate-100 font-mono text-[10px] dark:bg-slate-800" dir="ltr">{c.ticket_prefix}-</span>
@@ -90,8 +95,7 @@ export default function AdminCompanies() {
                 <div className="mt-1 flex items-center gap-1 text-[11px] text-slate-500"><Clock className="h-3 w-3" /> {c.business_hours_text || 'بدون ساعت کاری (زمان تقویمی)'}</div>
               </div>
               <div className="flex gap-1">
-                <button className="btn-icon h-8 w-8" title="بارگذاری لوگو" onClick={() => { setLogoFor(c.id); logoRef.current?.click(); }}><Upload className="h-4 w-4" /></button>
-                <button className="btn-icon h-8 w-8" onClick={() => setEdit({ id: c.id, name: c.name, name_en: c.name_en || '', slug: c.slug, description: c.description || '', color: c.color || '#8B0000', is_active: !!c.is_active, sort_order: c.sort_order || 0, ticket_prefix: c.ticket_prefix || 'TKT', support_email: c.support_email || '', support_phone: c.support_phone || '', website: c.website || '', business_hours: c.business_hours || DEFAULT_HOURS, products: ((c.products as any[]) || []).map((p: any) => (typeof p === 'string' ? p : p.name)) })}><Pencil className="h-4 w-4" /></button>
+                <button className="btn-icon h-8 w-8" title="ویرایش" onClick={() => setEdit({ id: c.id, name: c.name, name_en: c.name_en || '', slug: c.slug, description: c.description || '', color: c.color || '#8B0000', is_active: !!c.is_active, sort_order: c.sort_order || 0, ticket_prefix: c.ticket_prefix || 'TKT', support_email: c.support_email || '', support_phone: c.support_phone || '', website: c.website || '', business_hours: c.business_hours || DEFAULT_HOURS, products: ((c.products as any[]) || []).map((p: any) => (typeof p === 'string' ? p : p.name)) })}><Pencil className="h-4 w-4" /></button>
                 <button className="btn-icon h-8 w-8 text-rose-500" onClick={() => setDel(c)}><Trash2 className="h-4 w-4" /></button>
               </div>
             </div>
@@ -107,7 +111,11 @@ export default function AdminCompanies() {
               <Field label="نام انگلیسی"><input className="input ltr" value={edit.name_en} onChange={(e) => setEdit({ ...edit, name_en: e.target.value })} dir="ltr" /></Field>
               <Field label="پیشوند شماره تیکت" hint="مثلاً MLN، SHM"><input className="input ltr" value={edit.ticket_prefix} onChange={(e) => setEdit({ ...edit, ticket_prefix: e.target.value.toUpperCase() })} dir="ltr" maxLength={6} /></Field>
             </div>
-            <Field label="توضیح کوتاه" hint="به مشتری در انتخاب شرکت کمک می‌کند."><input className="input" value={edit.description} onChange={(e) => setEdit({ ...edit, description: e.target.value })} /></Field>
+            <div className="grid gap-4 sm:grid-cols-[1fr_220px]">
+              <Field label="توضیح کوتاه" hint="به مشتری در انتخاب شرکت کمک می‌کند."><input className="input" value={edit.description} onChange={(e) => setEdit({ ...edit, description: e.target.value })} /></Field>
+              <Field label="رنگ سازمانی" hint="در کارت انتخاب شرکت استفاده می‌شود."><div className="flex items-center gap-2"><input type="color" value={edit.color} onChange={(e) => setEdit({ ...edit, color: e.target.value })} className="h-10 w-14 cursor-pointer rounded-lg border border-slate-200" /><input className="input ltr flex-1" value={edit.color} onChange={(e) => setEdit({ ...edit, color: e.target.value })} dir="ltr" /></div></Field>
+            </div>
+            {edit.id && <p className="rounded-xl bg-slate-50 p-3 text-xs text-slate-500 dark:bg-slate-800">لوگوی شرکت را از دکمه «بارگذاری لوگو» روی کارت شرکت (در همین صفحه) آپلود کنید. PNG با پس‌زمینه شفاف بهترین نتیجه را می‌دهد.</p>}
             <div className="grid gap-4 sm:grid-cols-3">
               <Field label="ایمیل پشتیبانی"><input className="input ltr" value={edit.support_email} onChange={(e) => setEdit({ ...edit, support_email: e.target.value })} dir="ltr" /></Field>
               <Field label="تلفن پشتیبانی"><input className="input ltr" value={edit.support_phone} onChange={(e) => setEdit({ ...edit, support_phone: e.target.value })} dir="ltr" /></Field>

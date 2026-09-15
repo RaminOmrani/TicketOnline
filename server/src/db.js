@@ -236,6 +236,10 @@ ensureColumn('tickets', 'agent_first_viewed_at', 'TEXT');
 ensureColumn('tickets', 'first_response_due_at', 'TEXT');
 ensureColumn('canned_responses', 'company_id', 'INTEGER REFERENCES companies(id) ON DELETE SET NULL');
 ensureColumn('kb_articles', 'company_id', 'INTEGER REFERENCES companies(id) ON DELETE SET NULL');
+ensureColumn('kb_articles', 'cover_image', 'TEXT');
+ensureColumn('kb_articles', 'body_format', "TEXT NOT NULL DEFAULT 'markdown'");
+ensureColumn('kb_articles', 'is_faq', 'INTEGER NOT NULL DEFAULT 0');
+ensureColumn('notifications', 'read_at', 'TEXT');
 db.exec('CREATE INDEX IF NOT EXISTS idx_tickets_company ON tickets(company_id)');
 db.exec('CREATE INDEX IF NOT EXISTS idx_departments_company ON departments(company_id)');
 

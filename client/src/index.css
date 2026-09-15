@@ -10,14 +10,37 @@
 @tailwind utilities;
 
 :root {
-  --brand-rgb: 139 0 0;
-  --brand-dark-rgb: 110 0 0;
-  --brand-light-rgb: 180 60 60;
-  --brand-deep-rgb: 48 0 0;
+  /* Source colours (set from settings by applyBrandColor) */
+  --brand-src-rgb: 139 0 0;
+  --brand-src-dark-rgb: 110 0 0;
+  --brand-src-light-rgb: 180 60 60;
+  --brand-src-deep-rgb: 48 0 0;
+  /* Softer variants used in dark mode so deep red never sits on black */
+  --brand-night-rgb: 164 80 80;
+  --brand-night-dark-rgb: 139 68 68;
+  --brand-night-light-rgb: 187 124 124;
+
+  --brand-rgb: var(--brand-src-rgb);
+  --brand-dark-rgb: var(--brand-src-dark-rgb);
+  --brand-light-rgb: var(--brand-src-light-rgb);
+  --brand-deep-rgb: var(--brand-src-deep-rgb);
   color-scheme: light;
 }
 .dark {
   color-scheme: dark;
+  --brand-rgb: var(--brand-night-rgb);
+  --brand-dark-rgb: var(--brand-night-dark-rgb);
+  --brand-light-rgb: var(--brand-night-light-rgb);
+  --brand-deep-rgb: 30 32 40;
+}
+/* Dark mode: calm neutral surfaces instead of pitch black */
+.dark body {
+  background-color: #14171f;
+  color: #e2e6ee;
+}
+.dark .card {
+  background-color: #1c2029;
+  border-color: #2a2f3b;
 }
 
 html {
@@ -108,6 +131,50 @@ body {
   }
   .prose-fa a {
     @apply text-brand underline;
+  }
+  .prose-fa img {
+    @apply my-3 h-auto max-w-full rounded-xl;
+  }
+  .prose-fa figure {
+    @apply my-4;
+  }
+  .prose-fa figcaption {
+    @apply mt-1 text-center text-xs text-slate-400;
+  }
+  .prose-fa table {
+    @apply my-3 w-full border-collapse text-sm;
+  }
+  .prose-fa th,
+  .prose-fa td {
+    @apply border border-slate-200 px-3 py-1.5 dark:border-slate-700;
+  }
+  .prose-fa th {
+    @apply bg-slate-50 font-bold dark:bg-slate-800;
+  }
+  .prose-fa hr {
+    @apply my-5 border-slate-200 dark:border-slate-700;
+  }
+  .prose-fa p {
+    @apply my-2;
+  }
+  .prose-fa pre {
+    @apply my-3 overflow-x-auto rounded-xl bg-slate-100 p-3 text-[13px] leading-6 dark:bg-slate-800;
+  }
+  /* WYSIWYG editor surface shares article styling */
+  .rich-editor:empty::before {
+    content: attr(data-placeholder);
+    @apply text-slate-400;
+  }
+  .rich-editor:focus {
+    @apply outline-none;
+  }
+}
+
+@media print {
+  aside,
+  header,
+  .no-print {
+    display: none !important;
   }
 }
 

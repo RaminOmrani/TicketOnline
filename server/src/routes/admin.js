@@ -10,7 +10,7 @@ import { requireRole, hashPassword, sanitizeUser, normalizeMobile } from '../lib
 import { validate, z, str, optStr, idParam, asyncHandler } from '../lib/validate.js';
 import { getAllSettings, setSetting, DEFAULT_SETTINGS } from '../lib/settings.js';
 import { onlineUserIds } from '../lib/realtime.js';
-import { sendEmail, emailLayout, emailEnabled, smsEnabled } from '../lib/notify.js';
+import { sendEmail, emailLayout, emailEnabled, smsEnabled, SMS_TEMPLATES } from '../lib/notify.js';
 import { normalizeSchedule } from '../lib/businessHours.js';
 
 const router = Router();
@@ -342,7 +342,7 @@ router.delete('/users/:id', validate(idParam, 'params'), (req, res) => {
 
 /* =========== Settings =========== */
 router.get('/settings', (req, res) => {
-  res.json({ settings: getAllSettings(), channels: { email: emailEnabled(), sms: smsEnabled() }, defaults: DEFAULT_SETTINGS });
+  res.json({ settings: getAllSettings(), channels: { email: emailEnabled(), sms: smsEnabled(), sms_provider: config.sms.provider || null, sms_templates: Object.fromEntries(Object.entries(SMS_TEMPLATES).map(([k, t]) => [k, { configured: !!config.sms.templates?.[k], text: t.text, args: t.args, env: t.env }])) }, defaults: DEFAULT_SETTINGS });
 });
 
 const settingsSchema = z.object({
@@ -370,6 +370,8 @@ const settingsSchema = z.object({
   notify_new_ticket_all_dept_agents: z.boolean().optional(),
   otp_login_enabled: z.boolean().optional(),
   password_login_enabled: z.boolean().optional(),
+  status_url: z.string().trim().max(300).refine((v) => !v || /^https?:\/\//.test(v), 'آدرس باید با http:// یا https:// شروع شود.').optional(),
+  status_label: optStr(80).optional(),
   sla_priority_multiplier: z.object({ low: z.number().positive(), normal: z.number().positive(), high: z.number().positive(), urgent: z.number().positive() }).optional(),
 });
 

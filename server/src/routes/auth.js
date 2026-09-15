@@ -165,7 +165,8 @@ router.post(
       if (user.email) {
         await sendEmail(user.email, 'بازیابی رمز عبور', emailLayout({ title: 'بازیابی رمز عبور', intro: `${user.name} عزیز، برای تعیین رمز عبور جدید روی دکمه زیر کلیک کنید. این لینک تا یک ساعت معتبر است.`, cta: 'تعیین رمز عبور جدید', ctaUrl: url, footer: 'اگر شما این درخواست را ثبت نکرده‌اید، این ایمیل را نادیده بگیرید.' }), url);
       } else if (user.mobile) {
-        await sendSms(user.mobile, `میلیونر: لینک بازیابی رمز عبور: ${url}`);
+        // No e-mail on file: mobile users sign in with a one-time code instead of a reset link.
+        return res.json({ ok: true, otp_hint: true, message: 'برای این شماره ایمیلی ثبت نشده است. لطفاً از «ورود با کد یک‌بارمصرف» استفاده کنید و سپس رمز عبور را از پروفایل تغییر دهید.' });
       }
       if (!config.isProd) console.log('[password reset link]', url);
     }
@@ -219,7 +220,7 @@ router.post(
     db.prepare('UPDATE otp_codes SET used_at = ? WHERE identifier = ? AND used_at IS NULL').run(now(), ch.value);
     db.prepare('INSERT INTO otp_codes (identifier, code_hash, expires_at) VALUES (?, ?, ?)').run(ch.value, hash, new Date(Date.now() + 5 * 60_000).toISOString());
     const company = getSetting('company_name');
-    if (ch.kind === 'mobile') await sendSms(ch.value, `${company}: کد ورود شما ${code}\nاعتبار: ۵ دقیقه`);
+    if (ch.kind === 'mobile') await sendSms(ch.value, `${company}: کد ورود شما ${code}\nاعتبار: ۵ دقیقه`, { template: 'otp', args: [code] });
     else await sendEmail(ch.value, `کد ورود به پشتیبانی ${company}`, emailLayout({ title: 'کد ورود یک‌بارمصرف', intro: 'برای ورود، این کد را در صفحه ورود وارد کنید. اعتبار کد ۵ دقیقه است.', body: code, footer: 'اگر شما درخواست ورود نداده‌اید، این پیام را نادیده بگیرید.' }), `کد ورود: ${code}`);
     if (!config.isProd) console.log('[otp]', ch.value, code);
     const exists = !!(ch.kind === 'mobile' ? db.prepare('SELECT id FROM users WHERE mobile = ?').get(ch.value) : db.prepare('SELECT id FROM users WHERE email = ?').get(ch.value));

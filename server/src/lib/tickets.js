@@ -260,7 +260,7 @@ export function createTicket({ customer, actor, subject, departmentId, priority 
       body: body ? body.slice(0, 1000) : '',
       footer: `شماره پیگیری: ${ticket.number}`,
     },
-    sms: `میلیونر: تیکت ${ticket.number} با موضوع «${subject.slice(0, 40)}» ثبت شد. پیگیری: ${config.appUrl}/tickets/${ticket.id}`,
+    sms: { template: 'ticket_created', args: [ticket.number], text: `میلیونر: تیکت ${ticket.number} با موضوع «${subject.slice(0, 40)}» ثبت شد. پیگیری: ${config.appUrl}/tickets/${ticket.id}` },
   });
 
   for (const staff of staffForTicket(ticket)) {
@@ -275,7 +275,7 @@ export function createTicket({ customer, actor, subject, departmentId, priority 
         intro: `${customer.name}${customer.company ? ` (${customer.company})` : ''} تیکت جدیدی با اولویت «${PRIORITY_LABELS[priority]}» ثبت کرده است.`,
         body: `${subject}\n\n${body.slice(0, 1000)}`,
       },
-      sms: ticket.assignee_id === staff.id ? `میلیونر: تیکت جدید ${ticket.number} به شما تخصیص یافت.` : null,
+      sms: ticket.assignee_id === staff.id ? { template: 'ticket_assigned', args: [ticket.number], text: `میلیونر: تیکت جدید ${ticket.number} به شما تخصیص یافت.` } : null,
     });
   }
   return ticket;
@@ -308,11 +308,11 @@ export function addMessage({ ticket, sender, body = '', type = 'message', attach
       } else {
         fields.last_customer_message_at = createdAt;
         fields.agent_unread = (ticket.agent_unread || 0) + 1;
-        if (['waiting_customer', 'resolved', 'closed'].includes(ticket.status)) {
+        if (['waiting_customer', 'resolved'].includes(ticket.status)) {
           fields.status = 'open';
           fields.resolved_at = null;
           fields.closed_at = null;
-          if (['resolved', 'closed'].includes(ticket.status)) {
+          if (ticket.status === 'resolved') {
             db.prepare('INSERT INTO ticket_events (ticket_id, actor_id, type, data) VALUES (?, ?, ?, ?)').run(ticket.id, sender.id, 'reopened', JSON.stringify({ from: ticket.status }));
           }
         }
@@ -345,7 +345,7 @@ export function addMessage({ ticket, sender, body = '', type = 'message', attach
           intro: `کارشناس پشتیبانی به تیکت «${updated.subject}» پاسخ داد:`,
           body: body.slice(0, 1500) || preview,
         },
-        sms: `میلیونر: پاسخ جدید برای تیکت ${updated.number} ثبت شد. ${config.appUrl}/tickets/${updated.id}`,
+        sms: { template: 'ticket_reply', args: [updated.number], text: `میلیونر: پاسخ جدید برای تیکت ${updated.number} ثبت شد. ${config.appUrl}/tickets/${updated.id}` },
       });
     } else {
       for (const staff of staffForTicket(updated)) {
@@ -413,7 +413,7 @@ export function changeStatus(ticket, actor, status, extra = {}) {
       body: updated.subject,
       ticket: updated,
       email: status === 'resolved' ? { subject: `[${updated.number}] تیکت شما حل شد`, intro: `تیکت «${updated.subject}» به وضعیت «${label}» تغییر کرد. اگر مشکل برطرف شده، لطفاً به کیفیت پشتیبانی امتیاز دهید؛ در غیر این صورت با ارسال پیام، تیکت مجدداً باز می‌شود.` } : status === 'closed' ? { subject: `[${updated.number}] تیکت بسته شد`, intro: `تیکت «${updated.subject}» بسته شد. در صورت نیاز می‌توانید تیکت جدیدی ثبت کنید.` } : null,
-      sms: status === 'resolved' ? `میلیونر: تیکت ${updated.number} حل شد. لطفاً به پشتیبانی امتیاز دهید.` : null,
+      sms: status === 'resolved' ? { template: 'ticket_resolved', args: [updated.number], text: `میلیونر: تیکت ${updated.number} حل شد. لطفاً به پشتیبانی امتیاز دهید.` } : null,
     });
   } else if (actor && !isStaff(actor)) {
     for (const staff of staffForTicket(updated)) {
@@ -441,7 +441,7 @@ export function assignTicket(ticket, actor, assigneeId) {
       body: updated.subject,
       ticket: updated,
       email: { subject: `[${updated.number}] تیکت به شما تخصیص یافت`, intro: `${actor.name} تیکت «${updated.subject}» را به شما تخصیص داد.` },
-      sms: `میلیونر: تیکت ${updated.number} به شما تخصیص یافت.`,
+      sms: { template: 'ticket_assigned', args: [updated.number], text: `میلیونر: تیکت ${updated.number} به شما تخصیص یافت.` },
     });
   }
   return updated;

@@ -25,8 +25,8 @@ export function timeAgo(iso?: string | null): string {
   if (!iso) return '';
   const diff = Date.now() - new Date(iso).getTime();
   const s = Math.floor(diff / 1000);
-  if (s < 45) return 'همین الان';
-  const m = Math.floor(s / 60);
+  if (s < 90) return 'لحظاتی پیش';
+  const m = Math.max(1, Math.round(s / 60));
   if (m < 60) return `${faNum(m)} دقیقه پیش`;
   const h = Math.floor(m / 60);
   if (h < 24) return `${faNum(h)} ساعت پیش`;
@@ -97,13 +97,26 @@ export function shade(hex: string, amount: number): [number, number, number] {
   return [f(r), f(g), f(b)];
 }
 
+/** Desaturate + lighten a colour so it stays readable on dark surfaces. */
+export function softenForDark(hex: string): [number, number, number] {
+  const [r, g, b] = hexToRgb(hex);
+  const l = 0.299 * r + 0.587 * g + 0.114 * b;
+  const mix = (c: number) => Math.round(c * 0.6 + l * 0.1 + 255 * 0.3); // 60% colour, a little grey, 30% white → muted brick tone
+  return [mix(r), mix(g), mix(b)].map((c) => Math.max(0, Math.min(255, c))) as [number, number, number];
+}
+
 export function applyBrandColor(hex: string) {
   if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return;
   const root = document.documentElement;
-  root.style.setProperty('--brand-rgb', hexToRgb(hex).join(' '));
-  root.style.setProperty('--brand-dark-rgb', shade(hex, -0.18).join(' '));
-  root.style.setProperty('--brand-light-rgb', shade(hex, 0.35).join(' '));
-  root.style.setProperty('--brand-deep-rgb', shade(hex, -0.65).join(' '));
+  // Light theme: exact brand colour. Dark theme: a softer, desaturated tint (see index.css).
+  root.style.setProperty('--brand-src-rgb', hexToRgb(hex).join(' '));
+  root.style.setProperty('--brand-src-dark-rgb', shade(hex, -0.18).join(' '));
+  root.style.setProperty('--brand-src-light-rgb', shade(hex, 0.35).join(' '));
+  root.style.setProperty('--brand-src-deep-rgb', shade(hex, -0.65).join(' '));
+  const soft = softenForDark(hex);
+  root.style.setProperty('--brand-night-rgb', soft.join(' '));
+  root.style.setProperty('--brand-night-dark-rgb', soft.map((c) => Math.round(c * 0.85)).join(' '));
+  root.style.setProperty('--brand-night-light-rgb', soft.map((c) => Math.round(c + (255 - c) * 0.25)).join(' '));
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute('content', hex);
 }
@@ -124,6 +137,7 @@ export function renderMarkdown(md: string): string {
   const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string));
   const inline = (s: string) =>
     esc(s)
+      .replace(/!\[([^\]]*)\]\(((?:https?:\/\/|\/)[^\s)]+)\)/g, '<img src="$2" alt="$1" />')
       .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
       .replace(/`(.+?)`/g, '<code>$1</code>')
       .replace(/\[(.+?)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
@@ -172,4 +186,10 @@ export function renderMarkdown(md: string): string {
   }
   closeList();
   return out.join('\n');
+}
+
+/** Articles are stored either as legacy markdown or as (server-sanitized) HTML. */
+export function renderArticle(body: string, format?: string): string {
+  if (format === 'html' || (!format && /^\s*</.test(body))) return body;
+  return renderMarkdown(body);
 }

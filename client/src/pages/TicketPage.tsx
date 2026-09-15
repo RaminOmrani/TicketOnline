@@ -1,15 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowRight, Lock, RotateCcw, Info, Trash2, Printer, Eye } from 'lucide-react';
+import { ArrowRight, Lock, RotateCcw, Info, Trash2, Printer, Eye, PlusCircle, Lock as LockIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '@/lib/api';
 import { getSocket } from '@/lib/socket';
 import { formatDayHeading } from '@/lib/format';
 import { useAuth } from '@/store/auth';
 import { PageLoader, EmptyState, ConfirmDialog, Modal } from '@/components/ui';
-import { StatusBadge, PriorityBadge, DeptChip, OverdueBadge } from '@/components/tickets/badges';
-import { CompanyBadge } from '@/components/Logo';
+import { StatusBadge } from '@/components/tickets/badges';
 import { TicketSidebar } from '@/components/tickets/TicketSidebar';
 import { MessageBubble, EditMessageBox } from '@/components/thread/MessageBubble';
 import { EventLine } from '@/components/thread/Timeline';
@@ -81,8 +80,10 @@ export default function TicketPage() {
   if (isLoading) return <PageLoader />;
   if (error || !data) return <EmptyState title="تیکت یافت نشد" description={(error as any)?.message} action={<Link to="/tickets" className="btn-primary">بازگشت به تیکت‌ها</Link>} />;
   const { ticket } = data;
+  const isClosed = ticket.status === 'closed';
   const canClose = ['open', 'in_progress', 'waiting_customer', 'resolved'].includes(ticket.status);
-  const canReopen = ['resolved', 'closed'].includes(ticket.status);
+  // Only staff can reopen; for customers a closed ticket is final.
+  const canReopen = isStaff && ['resolved', 'closed'].includes(ticket.status);
 
   const patch = async (body: any, msg: string) => {
     try {
@@ -99,33 +100,26 @@ export default function TicketPage() {
 
   return (
     <div className="mx-auto max-w-7xl" dir="rtl">
-      {/* Header: title block on the right, actions on the left */}
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start">
-        <div className="flex min-w-0 flex-1 items-start gap-2 text-right">
-          <button className="btn-icon shrink-0" onClick={() => navigate(-1)} aria-label="بازگشت"><ArrowRight className="h-5 w-5" /></button>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="num font-mono text-xs text-slate-400"><bdi dir="ltr">{ticket.number}</bdi></span>
-              <StatusBadge status={ticket.status} customerView={isCustomer} />
-              <PriorityBadge priority={ticket.priority} />
-              {!isCustomer && ticket.overdue && <OverdueBadge />}
-            </div>
-            <h1 className="mt-1 text-right text-lg font-extrabold leading-7 sm:text-xl" dir="rtl"><bdi>{ticket.subject}</bdi></h1>
-            <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-              <CompanyBadge company={ticket.company} />
-              <DeptChip department={ticket.department} />
-              {ticket.product && <span className="chip bg-slate-100 dark:bg-slate-800">{ticket.product}</span>}
-              {isStaff && ticket.tags.map((t) => <span key={t} className="chip bg-slate-100 text-slate-600 dark:bg-slate-800">#{t}</span>)}
-              {isCustomer && ticket.agent_viewed && !['resolved', 'closed'].includes(ticket.status) && <span className="chip bg-brand/10 text-brand"><Eye className="h-3 w-3" /> کارشناس در حال بررسی</span>}
+      {/* ---- Header card: title on the right, actions on the left ---- */}
+      <div className="card mb-4 p-4 sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+          <div className="flex min-w-0 flex-1 items-start gap-2 text-right">
+            <button className="btn-icon shrink-0 no-print" onClick={() => navigate('/tickets')} aria-label="بازگشت"><ArrowRight className="h-5 w-5" /></button>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-right text-lg font-extrabold leading-8 sm:text-xl" dir="rtl"><bdi>{ticket.subject}</bdi></h1>
+              <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                <StatusBadge status={ticket.status} customerView={isCustomer} />
+                {isCustomer && ticket.agent_viewed && !['resolved', 'closed'].includes(ticket.status) && <span className="chip bg-brand/10 text-brand"><Eye className="h-3 w-3" /> کارشناس در حال بررسی</span>}
+              </div>
             </div>
           </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-1.5 sm:shrink-0">
-          <button className="btn-icon lg:hidden" onClick={() => setShowInfo(true)} title="مشخصات"><Info className="h-5 w-5" /></button>
-          {isStaff && <button className="btn-icon hidden sm:inline-flex" onClick={() => window.print()} title="چاپ"><Printer className="h-5 w-5" /></button>}
-          {canReopen && <button className="btn btn-sm border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300" onClick={() => setConfirm('reopen')}><RotateCcw className="h-4 w-4" /> بازگشایی</button>}
-          {canClose && <button className="btn btn-sm border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300" onClick={() => setConfirm('close')}><Lock className="h-4 w-4" /> بستن تیکت</button>}
-          {isAdmin && <button className="btn-icon text-rose-500" onClick={() => setConfirm('delete')} title="حذف تیکت"><Trash2 className="h-5 w-5" /></button>}
+          <div className="flex flex-wrap items-center gap-1.5 no-print sm:shrink-0">
+            <button className="btn-icon lg:hidden" onClick={() => setShowInfo(true)} title="مشخصات"><Info className="h-5 w-5" /></button>
+            {isStaff && <button className="btn-icon hidden sm:inline-flex" onClick={() => window.print()} title="چاپ"><Printer className="h-5 w-5" /></button>}
+            {canReopen && <button className="btn btn-sm border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300" onClick={() => setConfirm('reopen')}><RotateCcw className="h-4 w-4" /> بازگشایی</button>}
+            {canClose && <button className="btn btn-sm border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300" onClick={() => setConfirm('close')}><Lock className="h-4 w-4" /> بستن تیکت</button>}
+            {isAdmin && <button className="btn-icon text-rose-500" onClick={() => setConfirm('delete')} title="حذف تیکت"><Trash2 className="h-5 w-5" /></button>}
+          </div>
         </div>
       </div>
 
@@ -144,8 +138,16 @@ export default function TicketPage() {
           )}
 
           {/* Composer on top */}
-          <div className="mb-4">
-            <Composer ticket={ticket} onSent={() => qc.invalidateQueries({ queryKey: ['ticket', ticket.id] })} />
+          <div className="mb-4 no-print">
+            {isCustomer && isClosed ? (
+              <div className="rounded-2xl border border-dashed border-slate-300 p-5 text-center text-sm text-slate-500 dark:border-slate-700">
+                <LockIcon className="mx-auto mb-2 h-6 w-6 text-slate-400" />
+                این تیکت بسته شده است و امکان ارسال پیام ندارد.
+                <div className="mt-3"><Link to={`/tickets/new?company=${ticket.company?.id || ''}&department=${ticket.department.id}`} className="btn-primary btn-sm"><PlusCircle className="h-4 w-4" /> ثبت تیکت جدید</Link></div>
+              </div>
+            ) : (
+              <Composer ticket={ticket} onSent={() => qc.invalidateQueries({ queryKey: ['ticket', ticket.id] })} />
+            )}
             {typing && (
               <div className="mt-2 flex items-center gap-2 text-xs text-slate-400 animate-fade-in">
                 <span className="flex gap-0.5"><span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400" /><span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:120ms]" /><span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:240ms]" /></span>
@@ -156,7 +158,6 @@ export default function TicketPage() {
 
           {/* Messages, newest first */}
           <div className="card space-y-4 p-4 sm:p-6">
-            <div className="text-xs font-bold text-slate-500">گفتگو (جدیدترین در بالا)</div>
             {stream.map((it) => {
               const day = it.at.slice(0, 10);
               const showDay = day !== lastDay;
@@ -164,10 +165,8 @@ export default function TicketPage() {
               return (
                 <div key={`${it.kind}-${it.m?.id ?? it.e?.id}`} className="space-y-4">
                   {showDay && (
-                    <div className="flex items-center gap-3 text-[11px] text-slate-400">
-                      <span className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
-                      <span className="rounded-full bg-slate-100 px-3 py-0.5 dark:bg-slate-800">{formatDayHeading(it.at)}</span>
-                      <span className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
+                    <div className="flex items-center justify-center">
+                      <span className="rounded-lg bg-slate-100 px-3 py-1 text-[11.5px] font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-300">{formatDayHeading(it.at)}</span>
                     </div>
                   )}
                   {it.kind === 'msg' && it.m ? (
@@ -185,7 +184,7 @@ export default function TicketPage() {
           </div>
         </div>
 
-        {/* Sidebar */}
+        {/* Sidebar: ticket details (number, company, department, dates…) */}
         <aside className="hidden lg:block">
           <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto pl-1">
             <TicketSidebar ticket={ticket} events={data.events} customerStats={data.customer_stats} />
@@ -197,8 +196,8 @@ export default function TicketPage() {
         <TicketSidebar ticket={ticket} events={data.events} customerStats={data.customer_stats} />
       </Modal>
 
-      <ConfirmDialog open={confirm === 'close'} onClose={() => setConfirm(null)} title="بستن تیکت" message="آیا از بستن این تیکت مطمئن هستید؟ در صورت نیاز می‌توانید تا مدتی آن را بازگشایی کنید." confirmText="بستن تیکت" danger onConfirm={() => { setConfirm(null); patch({ status: 'closed' }, 'تیکت بسته شد'); }} />
-      <ConfirmDialog open={confirm === 'reopen'} onClose={() => setConfirm(null)} title="بازگشایی تیکت" message="تیکت مجدداً باز می‌شود و کارشناسان مطلع خواهند شد." confirmText="بازگشایی" onConfirm={() => { setConfirm(null); patch({ status: 'open' }, 'تیکت بازگشایی شد'); }} />
+      <ConfirmDialog open={confirm === 'close'} onClose={() => setConfirm(null)} title="بستن تیکت" message={isCustomer ? 'با بستن تیکت، امکان ارسال پیام در آن وجود نخواهد داشت و برای موضوع جدید باید تیکت جدیدی ثبت کنید. ادامه می‌دهید؟' : 'آیا از بستن این تیکت مطمئن هستید؟'} confirmText="بستن تیکت" danger onConfirm={() => { setConfirm(null); patch({ status: 'closed' }, 'تیکت بسته شد'); }} />
+      <ConfirmDialog open={confirm === 'reopen'} onClose={() => setConfirm(null)} title="بازگشایی تیکت" message="تیکت مجدداً باز می‌شود و مشتری مطلع خواهد شد." confirmText="بازگشایی" onConfirm={() => { setConfirm(null); patch({ status: 'open' }, 'تیکت بازگشایی شد'); }} />
       <ConfirmDialog open={confirm === 'delete'} onClose={() => setConfirm(null)} danger title="حذف تیکت" message="این عملیات غیرقابل بازگشت است و همه پیام‌ها و پیوست‌های تیکت حذف می‌شوند." confirmText="حذف قطعی" onConfirm={async () => { setConfirm(null); try { await api.del(`/tickets/${ticket.id}`); toast.success('تیکت حذف شد'); navigate('/tickets'); } catch (e: any) { toast.error(e.message); } }} />
       <ConfirmDialog open={!!deleting} onClose={() => setDeleting(null)} danger title="حذف پیام" message="این پیام و پیوست‌های آن حذف می‌شود." confirmText="حذف" onConfirm={async () => { const m = deleting!; setDeleting(null); try { await api.del(`/tickets/${ticket.id}/messages/${m.id}`); qc.invalidateQueries({ queryKey: ['ticket', ticket.id] }); } catch (e: any) { toast.error(e.message); } }} />
     </div>

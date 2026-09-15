@@ -21,7 +21,12 @@ function getTransporter() {
 }
 
 export const emailEnabled = () => !!config.smtp.host;
-export const smsEnabled = () => config.sms.provider === 'kavenegar' && !!config.sms.apiKey;
+export const smsEnabled = () => {
+  const p = config.sms.provider;
+  if (p === 'kavenegar') return !!config.sms.apiKey;
+  if (p === 'melipayamak') return !!config.sms.apiKey || !!(config.sms.username && config.sms.password);
+  return false;
+};
 
 function escapeHtml(s = '') {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -63,17 +68,103 @@ export async function sendEmail(to, subject, html, text) {
   }
 }
 
-export async function sendSms(mobile, text) {
+/* ------------------------------------------------------------------ */
+/*  SMS                                                                */
+/*                                                                     */
+/*  sendSms(mobile, text)                      → plain text message    */
+/*  sendSms(mobile, text, { template, args })  → pattern/template send */
+/*                                                                     */
+/*  Template keys map to env vars SMS_TPL_<KEY> holding the pattern    */
+/*  (bodyId) number approved in the provider panel. When a template id */
+/*  is missing the plain text is sent instead (needs a dedicated line).*/
+/* ------------------------------------------------------------------ */
+export const SMS_TEMPLATES = {
+  otp: { env: 'SMS_TPL_OTP', args: ['کد'], text: 'کد ورود شما به پشتیبانی میلیونر: {0}\nاعتبار کد ۵ دقیقه است.' },
+  ticket_created: { env: 'SMS_TPL_TICKET_CREATED', args: ['شماره تیکت'], text: 'میلیونر\nتیکت شما با شماره {0} ثبت شد. کارشناسان ما در اسرع وقت پاسخ می‌دهند.\nپیگیری: support.softmiliac.com' },
+  ticket_reply: { env: 'SMS_TPL_TICKET_REPLY', args: ['شماره تیکت'], text: 'میلیونر\nپاسخ جدیدی برای تیکت {0} ثبت شد.\nمشاهده: support.softmiliac.com' },
+  ticket_resolved: { env: 'SMS_TPL_TICKET_RESOLVED', args: ['شماره تیکت'], text: 'میلیونر\nتیکت {0} حل شد. لطفاً به کیفیت پشتیبانی امتیاز دهید.\nsupport.softmiliac.com' },
+  ticket_assigned: { env: 'SMS_TPL_TICKET_ASSIGNED', args: ['شماره تیکت'], text: 'میلیونر\nتیکت {0} به شما تخصیص یافت.\nsupport.softmiliac.com' },
+};
+
+function templateId(key) {
+  const t = SMS_TEMPLATES[key];
+  if (!t) return null;
+  const v = (config.sms.templates || {})[key] || process.env[t.env];
+  return v ? String(v).trim() : null;
+}
+
+/** Melli Payamak args must be single-line and free of ';' (REST separator). */
+function cleanArg(a) {
+  return String(a ?? '').replace(/[\r\n;]+/g, ' ').trim().slice(0, 60);
+}
+
+async function sendKavenegar(mobile, text) {
+  const url = `https://api.kavenegar.com/v1/${encodeURIComponent(config.sms.apiKey)}/sms/send.json`;
+  const params = new URLSearchParams({ receptor: mobile, message: text });
+  if (config.sms.sender) params.set('sender', config.sms.sender);
+  const res = await fetch(url, { method: 'POST', body: params, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+  return res.ok;
+}
+
+async function sendMelipayamak(mobile, text, tpl) {
+  const bodyId = tpl?.template ? templateId(tpl.template) : null;
+  const args = (tpl?.args || []).map(cleanArg);
+  // 1) Pattern send through the shared service (no dedicated line needed)
+  if (bodyId && config.sms.apiKey) {
+    const res = await fetch(`https://console.melipayamak.com/api/send/shared/${encodeURIComponent(config.sms.apiKey)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bodyId: Number(bodyId), to: mobile, args }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && (data.recId || data.status)) return true;
+    console.error('melipayamak pattern send failed:', res.status, data);
+    return false;
+  }
+  // 2) Pattern send through the legacy REST API (username/password)
+  if (bodyId && config.sms.username && config.sms.password) {
+    const res = await fetch('https://rest.payamak-panel.com/api/SendSMS/BaseServiceNumber', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: config.sms.username, password: config.sms.password, text: args.join(';'), to: mobile, bodyId: Number(bodyId) }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && Number(data.RetStatus) === 1) return true;
+    console.error('melipayamak REST pattern send failed:', res.status, data);
+    return false;
+  }
+  // 3) Plain text (requires a dedicated sender line)
+  if (config.sms.apiKey) {
+    const res = await fetch(`https://console.melipayamak.com/api/send/simple/${encodeURIComponent(config.sms.apiKey)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: config.sms.sender || undefined, to: mobile, text }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && (data.recId || data.status)) return true;
+    console.error('melipayamak simple send failed:', res.status, data);
+    return false;
+  }
+  if (config.sms.username && config.sms.password) {
+    const res = await fetch('https://rest.payamak-panel.com/api/SendSMS/SendSMS', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: config.sms.username, password: config.sms.password, from: config.sms.sender, to: mobile, text }),
+    });
+    const data = await res.json().catch(() => ({}));
+    return res.ok && Number(data.RetStatus) === 1;
+  }
+  return false;
+}
+
+export async function sendSms(mobile, text, tpl = null) {
   if (!mobile || !smsEnabled()) {
-    if (!config.isProd && mobile) console.log(`[sms:disabled] to=${mobile}: ${text}`);
+    if (!config.isProd && mobile) console.log(`[sms:disabled] to=${mobile}: ${text}${tpl ? ` (template ${tpl.template}: ${JSON.stringify(tpl.args)})` : ''}`);
     return false;
   }
   try {
-    const url = `https://api.kavenegar.com/v1/${encodeURIComponent(config.sms.apiKey)}/sms/send.json`;
-    const params = new URLSearchParams({ receptor: mobile, message: text });
-    if (config.sms.sender) params.set('sender', config.sms.sender);
-    const res = await fetch(url, { method: 'POST', body: params, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
-    return res.ok;
+    if (config.sms.provider === 'melipayamak') return await sendMelipayamak(mobile, text, tpl);
+    return await sendKavenegar(mobile, text);
   } catch (e) {
     console.error('sms send failed:', e.message);
     return false;
@@ -91,7 +182,7 @@ export function createNotification({ userId, type, title, body = null, ticketId 
 
 /**
  * Notify a user through all enabled channels.
- * opts: { type, title, body, ticket, email: {subject, intro, body, cta}, sms: string }
+ * opts: { type, title, body, ticket, email: {subject, intro, body, cta}, sms: string | { text, template, args } }
  */
 export async function notifyUser(user, opts) {
   if (!user || !user.is_active) return;
@@ -109,6 +200,7 @@ export async function notifyUser(user, opts) {
     sendEmail(user.email, opts.email.subject || opts.title, html, `${opts.title}\n${opts.email.body || ''}\n${ticketUrl}`);
   }
   if (user.notify_sms && user.mobile && opts.sms) {
-    sendSms(user.mobile, opts.sms);
+    if (typeof opts.sms === 'string') sendSms(user.mobile, opts.sms);
+    else sendSms(user.mobile, opts.sms.text, { template: opts.sms.template, args: opts.sms.args });
   }
 }

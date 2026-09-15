@@ -147,6 +147,7 @@ export interface Notification {
   body?: string | null;
   ticket_id?: number | null;
   is_read: number;
+  read_at?: string | null;
   created_at: string;
 }
 
@@ -173,6 +174,8 @@ export interface PublicConfig {
     reopen_window_days: number;
     otp_login_enabled: boolean;
     password_login_enabled: boolean;
+    status_url?: string;
+    status_label?: string;
   };
   departments: Department[];
   companies: Company[];
@@ -198,6 +201,9 @@ export interface KbArticle {
   slug: string;
   summary?: string | null;
   body: string;
+  body_format?: 'markdown' | 'html';
+  cover_image?: string | null;
+  is_faq?: boolean | number;
   category?: string | null;
   department_id?: number | null;
   department_name?: string | null;

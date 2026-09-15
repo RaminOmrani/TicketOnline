@@ -7,6 +7,17 @@ import { useConfig } from '@/store/config';
 import { Field, PageLoader, Spinner, Toggle } from '@/components/ui';
 import { Logo } from '@/components/Logo';
 
+/* Defined at module level: declaring it inside the component re-created the
+   element type on every keystroke, which remounted the inputs and lost focus. */
+function Section({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
+  return (
+    <section className="card p-5">
+      <h2 className="mb-4 flex items-center gap-2 font-bold [&>svg]:h-4 [&>svg]:w-4 [&>svg]:text-brand">{icon} {title}</h2>
+      <div className="space-y-4">{children}</div>
+    </section>
+  );
+}
+
 export default function AdminSettings() {
   const { reload } = useConfig();
   const { data, isLoading } = useQuery({ queryKey: ['admin-settings'], queryFn: () => api.get('/admin/settings') });
@@ -47,13 +58,6 @@ export default function AdminSettings() {
     }
   };
 
-  const Section = ({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) => (
-    <section className="card p-5">
-      <h2 className="mb-4 flex items-center gap-2 font-bold [&>svg]:h-4 [&>svg]:w-4 [&>svg]:text-brand">{icon} {title}</h2>
-      <div className="space-y-4">{children}</div>
-    </section>
-  );
-
   return (
     <div className="mx-auto max-w-4xl space-y-5">
       <div className="flex items-center gap-3">
@@ -84,6 +88,10 @@ export default function AdminSettings() {
           <Field label="تلفن پشتیبانی"><input className="input ltr" value={s.support_phone || ''} onChange={(e) => set('support_phone', e.target.value)} dir="ltr" /></Field>
         </div>
         <Field label="ساعات پاسخ‌گویی"><input className="input" value={s.working_hours || ''} onChange={(e) => set('working_hours', e.target.value)} /></Field>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="لینک صفحه وضعیت سرویس‌ها (Status)" hint="مثلاً https://status.softmiliac.com — در منو و داشبورد نمایش داده می‌شود."><input className="input ltr" value={s.status_url || ''} onChange={(e) => set('status_url', e.target.value)} dir="ltr" placeholder="https://" /></Field>
+          <Field label="عنوان لینک وضعیت"><input className="input" value={s.status_label || ''} onChange={(e) => set('status_label', e.target.value)} placeholder="وضعیت سرویس‌ها و اختلالات" /></Field>
+        </div>
         <Field label="پیام خوش‌آمد (بالای فرم ثبت تیکت)"><textarea className="input min-h-[80px]" value={s.welcome_message || ''} onChange={(e) => set('welcome_message', e.target.value)} /></Field>
       </Section>
 
@@ -122,8 +130,23 @@ export default function AdminSettings() {
       <Section icon={<Mail />} title="کانال‌های اطلاع‌رسانی">
         <div className="grid gap-3 sm:grid-cols-2 text-sm">
           <div className={`rounded-xl border p-3 ${data.channels.email ? 'border-emerald-200 bg-emerald-50 dark:bg-emerald-500/10' : 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800'}`}><div className="font-semibold">ایمیل (SMTP)</div><div className="text-xs text-slate-500">{data.channels.email ? 'فعال' : 'غیرفعال — متغیرهای SMTP_* را در فایل .env تنظیم کنید.'}</div></div>
-          <div className={`rounded-xl border p-3 ${data.channels.sms ? 'border-emerald-200 bg-emerald-50 dark:bg-emerald-500/10' : 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800'}`}><div className="font-semibold">پیامک (کاوه‌نگار)</div><div className="text-xs text-slate-500">{data.channels.sms ? 'فعال' : 'غیرفعال — SMS_PROVIDER=kavenegar و SMS_API_KEY را تنظیم کنید.'}</div></div>
+          <div className={`rounded-xl border p-3 ${data.channels.sms ? 'border-emerald-200 bg-emerald-50 dark:bg-emerald-500/10' : 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800'}`}><div className="font-semibold">پیامک ({data.channels.sms_provider === 'melipayamak' ? 'ملی‌پیامک' : data.channels.sms_provider === 'kavenegar' ? 'کاوه‌نگار' : 'ملی‌پیامک / کاوه‌نگار'})</div><div className="text-xs text-slate-500">{data.channels.sms ? 'فعال' : 'غیرفعال — در فایل .env مقدار SMS_PROVIDER=melipayamak و SMS_API_KEY را تنظیم کنید.'}</div></div>
         </div>
+        {data.channels.sms_templates && (
+          <div>
+            <div className="mb-2 text-sm font-semibold">الگوهای پیامک (ملی‌پیامک)</div>
+            <p className="mb-2 text-xs text-slate-500">این متن‌ها را در پنل ملی‌پیامک → «خدمات» → «ارسال با الگو» ثبت کنید و پس از تأیید، کد الگو (bodyId) هر کدام را در فایل .env مقابل متغیر مربوطه بگذارید.</p>
+            <div className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 text-xs dark:divide-slate-800 dark:border-slate-700">
+              {Object.entries(data.channels.sms_templates as Record<string, { configured: boolean; text: string; env: string; args: string[] }>).map(([k, t]) => (
+                <div key={k} className="grid gap-1 px-3 py-2 sm:grid-cols-[180px_1fr_auto] sm:items-start">
+                  <code className="ltr text-[11px] text-slate-500">{t.env}</code>
+                  <pre className="whitespace-pre-wrap font-sans leading-6" dir="rtl">{t.text}</pre>
+                  <span className={t.configured ? 'text-emerald-600' : 'text-amber-600'}>{t.configured ? 'تنظیم شده' : 'کد الگو تنظیم نشده'}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </Section>
 
       <div className="flex justify-end"><button className="btn-primary" onClick={save} disabled={saving}>{saving ? <Spinner className="h-4 w-4" /> : <Save className="h-4 w-4" />} ذخیره تغییرات</button></div>

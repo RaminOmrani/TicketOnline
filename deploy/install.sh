@@ -55,7 +55,14 @@ SMTP_PASS=
 SMTP_FROM=پشتیبانی میلیونر <info@softmiliac.com>
 SMS_PROVIDER=
 SMS_API_KEY=
+SMS_USERNAME=
+SMS_PASSWORD=
 SMS_SENDER=
+SMS_TPL_OTP=
+SMS_TPL_TICKET_CREATED=
+SMS_TPL_TICKET_REPLY=
+SMS_TPL_TICKET_RESOLVED=
+SMS_TPL_TICKET_ASSIGNED=
 EOF
   chmod 600 .env
   echo "    رمز مدیر اولیه ساخته شد (در پایان نمایش داده می‌شود)."

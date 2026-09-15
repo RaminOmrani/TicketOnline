@@ -302,7 +302,7 @@ router.post('/:id/read', validate(idParam, 'params'), (req, res) => {
     db.prepare('UPDATE tickets SET agent_unread = 0 WHERE id = ?').run(t.id);
     emitToUser(t.customer_id, 'ticket:read', { ticket_id: t.id, by: 'agent', at: ts });
   }
-  db.prepare('UPDATE notifications SET is_read = 1 WHERE user_id = ? AND ticket_id = ?').run(req.user.id, t.id);
+  db.prepare('UPDATE notifications SET is_read = 1, read_at = COALESCE(read_at, ?) WHERE user_id = ? AND ticket_id = ?').run(ts, req.user.id, t.id);
   res.json({ ok: true });
 });
 
@@ -326,12 +326,9 @@ router.post(
       return res.status(400).json({ error: 'متن پیام بیش از حد طولانی است.' });
     }
     if (req.user.role === 'customer' && t.status === 'closed') {
-      const windowDays = Number(getSetting('reopen_window_days')) || 30;
-      const closedAt = t.closed_at ? Date.parse(t.closed_at) : 0;
-      if (Date.now() - closedAt > windowDays * 86400000) {
-        cleanupTemp(files);
-        return res.status(400).json({ error: `این تیکت بیش از ${windowDays} روز پیش بسته شده و امکان ارسال پیام ندارد. لطفاً تیکت جدیدی ثبت کنید.` });
-      }
+      // Closed tickets are final for customers: no reopening, no new messages.
+      cleanupTemp(files);
+      return res.status(400).json({ error: 'این تیکت بسته شده است و امکان ارسال پیام ندارد. لطفاً تیکت جدیدی ثبت کنید.' });
     }
     const attachments = await processUploads(files, parseMeta(req));
     const msg = addMessage({ ticket: t, sender: req.user, body, type, attachments });
@@ -393,16 +390,12 @@ router.patch(
     const b = req.body;
 
     if (u.role === 'customer') {
-      // Customers may only close (or reopen recently closed) their own tickets
+      // Customers may only close their own tickets. A closed ticket is final;
+      // a resolved one can be reopened by sending a new message (see addMessage).
       const allowed = ['status'];
       for (const k of Object.keys(b)) if (!allowed.includes(k)) return res.status(403).json({ error: 'شما مجوز تغییر این مورد را ندارید.' });
-      if (b.status && !['closed', 'open'].includes(b.status)) return res.status(403).json({ error: 'شما فقط می‌توانید تیکت را ببندید یا بازگشایی کنید.' });
-      if (b.status === 'open' && ['closed', 'resolved'].includes(t.status)) {
-        const windowDays = Number(getSetting('reopen_window_days')) || 30;
-        const ref = t.closed_at || t.resolved_at;
-        if (ref && Date.now() - Date.parse(ref) > windowDays * 86400000) return res.status(400).json({ error: 'مهلت بازگشایی تیکت گذشته است. لطفاً تیکت جدیدی ثبت کنید.' });
-        changeStatus(t, u, 'open', { reopened: true });
-      } else if (b.status === 'closed') {
+      if (b.status && b.status !== 'closed') return res.status(403).json({ error: 'شما فقط می‌توانید تیکت را ببندید. برای ادامه گفتگو، تیکت جدیدی ثبت کنید.' });
+      if (b.status === 'closed' && t.status !== 'closed') {
         changeStatus(t, u, 'closed', { by_customer: true });
       }
       return res.json({ ticket: shapeTicket(getTicket(t.id), u, { withCounts: true }) });

@@ -1,15 +1,17 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import clsx from 'clsx';
-import { PlusCircle, Inbox, Clock, AlertTriangle, CheckCircle2, BookOpen, ArrowLeft, UserCheck, MessageSquareWarning, Mic, FileUp, Video } from 'lucide-react';
+import { PlusCircle, Inbox, Clock, AlertTriangle, CheckCircle2, BookOpen, ArrowLeft, UserCheck, MessageSquareWarning, ChevronDown, Activity, ExternalLink } from 'lucide-react';
 import { api } from '@/lib/api';
 import { faNum } from '@/lib/format';
 import { useAuth } from '@/store/auth';
 import { useConfig } from '@/store/config';
 import { Skeleton, EmptyState } from '@/components/ui';
 import { DeptIcon } from '@/components/tickets/badges';
-import { TicketRow } from './TicketsPage';
-import type { Ticket, KbArticle } from '@/lib/types';
+import { LogoMark } from '@/components/Logo';
+import { TicketMiniList } from '@/components/tickets/TicketTable';
+import type { Ticket, KbArticle, Company } from '@/lib/types';
 
 function Stat({ label, value, icon, to, color = 'brand' }: { label: string; value?: number; icon: React.ReactNode; to: string; color?: string }) {
   const colors: Record<string, string> = { brand: 'bg-brand/10 text-brand', amber: 'bg-amber-100 text-amber-600 dark:bg-amber-500/15', rose: 'bg-rose-100 text-rose-600 dark:bg-rose-500/15', green: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15', violet: 'bg-violet-100 text-violet-600 dark:bg-violet-500/15' };
@@ -24,13 +26,62 @@ function Stat({ label, value, icon, to, color = 'brand' }: { label: string; valu
   );
 }
 
+/** Company tiles (2×2). Clicking a tile expands its departments. */
+function CompanyGrid({ companies }: { companies: Company[] }) {
+  const [openId, setOpenId] = useState<number | null>(null);
+  const open = companies.find((c) => c.id === openId) || null;
+  return (
+    <section className="card p-4">
+      <h2 className="mb-3 text-base font-bold">شرکت‌ها و بخش‌های پشتیبانی</h2>
+      <div className="grid grid-cols-2 gap-2.5">
+        {companies.map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            onClick={() => setOpenId((v) => (v === c.id ? null : c.id))}
+            className={clsx('flex flex-col items-center gap-2 rounded-2xl border p-3 text-center transition hover:border-brand/50 hover:shadow-pop', openId === c.id ? 'border-brand bg-brand/5 ring-4 ring-brand/10' : 'border-slate-200 dark:border-slate-700')}
+            style={c.color && openId === c.id ? { borderColor: c.color } : undefined}
+          >
+            <span className="flex h-12 w-full items-center justify-center">
+              {c.logo ? <img src={c.logo} alt={c.name} className="max-h-12 max-w-[85%] object-contain" /> : <LogoMark className="h-10 w-10" color={c.color || 'rgb(var(--brand-rgb))'} />}
+            </span>
+            <span className="flex items-center gap-1 text-[13px] font-bold leading-5">
+              {c.name}
+              <ChevronDown className={clsx('h-3.5 w-3.5 text-slate-400 transition', openId === c.id && 'rotate-180')} />
+            </span>
+          </button>
+        ))}
+      </div>
+      {open && (
+        <div className="mt-3 rounded-2xl border border-slate-200 p-2 animate-fade-in dark:border-slate-700">
+          <div className="flex items-center justify-between px-2 py-1">
+            <span className="text-xs font-bold text-slate-500">بخش‌های {open.name}</span>
+            <Link to={`/tickets/new?company=${open.id}`} className="text-[11px] text-brand hover:underline">ثبت تیکت برای {open.name}</Link>
+          </div>
+          <ul className="space-y-0.5">
+            {open.departments?.map((d) => (
+              <li key={d.id}>
+                <Link to={`/tickets/new?company=${open.id}&department=${d.id}`} className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition hover:bg-slate-50 dark:hover:bg-slate-800">
+                  <span className="text-brand"><DeptIcon name={d.icon} className="h-4 w-4" /></span>
+                  <span className="text-sm">{d.name}</span>
+                </Link>
+              </li>
+            ))}
+            {!open.departments?.length && <li className="px-2 py-1 text-xs text-slate-400">بخشی تعریف نشده است.</li>}
+          </ul>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function DashboardPage() {
   const { user, isStaff } = useAuth();
   const { companies, settings } = useConfig();
   const { data: summary } = useQuery({ queryKey: ['summary'], queryFn: () => api.get('/tickets/summary') });
-  const { data: recent, isLoading } = useQuery({ queryKey: ['tickets', { view: isStaff ? 'open' : undefined, per_page: 6, sort: 'updated' }], queryFn: () => api.get<{ items: Ticket[] }>('/tickets', { view: isStaff ? 'open' : undefined, per_page: 6, sort: 'updated' }) });
+  const { data: recent, isLoading } = useQuery({ queryKey: ['tickets', { view: isStaff ? 'open' : undefined, per_page: 8, sort: 'updated' }], queryFn: () => api.get<{ items: Ticket[] }>('/tickets', { view: isStaff ? 'open' : undefined, per_page: 8, sort: 'updated' }) });
   const { data: unread } = useQuery({ queryKey: ['tickets', { view: 'unread', per_page: 5 }], queryFn: () => api.get<{ items: Ticket[] }>('/tickets', { view: 'unread', per_page: 5 }) });
-  const { data: kb } = useQuery({ queryKey: ['kb', ''], queryFn: () => api.get<{ items: KbArticle[] }>('/kb') });
+  const { data: kb } = useQuery({ queryKey: ['kb', 'dash'], queryFn: () => api.get<{ items: KbArticle[] }>('/kb', { limit: 6, sort: 'views' }) });
 
   const hour = new Date().getHours();
   const greet = hour < 12 ? 'صبح بخیر' : hour < 17 ? 'ظهر بخیر' : 'عصر بخیر';
@@ -42,7 +93,7 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-extrabold">{greet}، {user?.name?.split(' ')[0]} 👋</h1>
           <p className="mt-1 text-sm text-slate-500">{isStaff ? 'خلاصه وضعیت صندوق پشتیبانی' : `به ${settings.site_title} خوش آمدید.`}</p>
         </div>
-        <Link to="/tickets/new" className="btn-primary"><PlusCircle className="h-4 w-4" /> ثبت تیکت جدید</Link>
+        <Link to="/tickets/new" className="btn-primary"><PlusCircle className="h-4 w-4" /> ایجاد تیکت جدید</Link>
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -66,61 +117,37 @@ export default function DashboardPage() {
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           {unread && unread.items.length > 0 && (
-            <section>
-              <h2 className="mb-2 flex items-center gap-2 text-base font-bold"><span className="h-2 w-2 rounded-full bg-brand" /> پیام‌های خوانده‌نشده</h2>
-              <div className="space-y-3">{unread.items.map((t) => <TicketRow key={t.id} t={t} staff={isStaff} compact />)}</div>
+            <section className="card overflow-hidden">
+              <h2 className="flex items-center gap-2 border-b border-slate-100 px-4 py-3 text-base font-bold dark:border-slate-800"><span className="h-2 w-2 rounded-full bg-brand" /> پیام‌های خوانده‌نشده</h2>
+              <TicketMiniList items={unread.items} staff={isStaff} />
             </section>
           )}
-          <section>
-            <div className="mb-2 flex items-center justify-between">
+          <section className="card overflow-hidden">
+            <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-slate-800">
               <h2 className="text-base font-bold">{isStaff ? 'تیکت‌های در جریان' : 'آخرین تیکت‌ها'}</h2>
               <Link to="/tickets" className="flex items-center gap-1 text-xs text-brand hover:underline">مشاهده همه <ArrowLeft className="h-3.5 w-3.5" /></Link>
             </div>
             {isLoading ? (
-              <div className="space-y-3">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-24" />)}</div>
+              <div className="space-y-2 p-4">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-12" />)}</div>
             ) : !recent?.items.length ? (
-              <div className="card"><EmptyState title="تیکتی وجود ندارد" description={isStaff ? 'همه تیکت‌ها رسیدگی شده‌اند. آفرین!' : 'برای ارتباط با بخش‌های مختلف، تیکت جدید ثبت کنید.'} action={!isStaff && <Link to="/tickets/new" className="btn-primary">ثبت تیکت</Link>} /></div>
+              <EmptyState title="تیکتی وجود ندارد" description={isStaff ? 'همه تیکت‌ها رسیدگی شده‌اند. آفرین!' : 'برای ارتباط با بخش‌های مختلف، تیکت جدید ثبت کنید.'} action={!isStaff && <Link to="/tickets/new" className="btn-primary">ثبت تیکت</Link>} />
             ) : (
-              <div className="space-y-3">{recent.items.map((t) => <TicketRow key={t.id} t={t} staff={isStaff} compact />)}</div>
+              <TicketMiniList items={recent.items} staff={isStaff} />
             )}
           </section>
         </div>
 
         <div className="space-y-6">
-          {!isStaff && (
-            <section className="card p-4">
-              <h2 className="mb-3 text-base font-bold">شرکت‌ها و بخش‌های پشتیبانی</h2>
-              <div className="space-y-4">
-                {companies.map((c) => (
-                  <div key={c.id}>
-                    <Link to={`/tickets/new?company=${c.id}`} className="mb-1 flex items-center gap-2 text-sm font-bold text-brand hover:underline">
-                      {c.logo ? <img src={c.logo} alt="" className="h-6 w-auto object-contain" /> : null}
-                      {c.name}
-                    </Link>
-                    <ul className="space-y-0.5">
-                      {c.departments?.map((d) => (
-                        <li key={d.id}>
-                          <Link to={`/tickets/new?company=${c.id}&department=${d.id}`} className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition hover:bg-slate-50 dark:hover:bg-slate-800">
-                            <span className="text-brand"><DeptIcon name={d.icon} className="h-4 w-4" /></span>
-                            <span className="text-sm">{d.name}</span>
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-          {!isStaff && (
-            <section className="card bg-gradient-to-br from-brand to-brand-dark p-4 text-white">
-              <h2 className="text-base font-bold">امکانات ارسال</h2>
-              <ul className="mt-3 space-y-2 text-sm">
-                <li className="flex items-center gap-2"><FileUp className="h-4 w-4" /> ارسال فایل، سند و نسخه پشتیبان</li>
-                <li className="flex items-center gap-2"><Video className="h-4 w-4" /> ارسال تصویر و ویدیو از صفحه</li>
-                <li className="flex items-center gap-2"><Mic className="h-4 w-4" /> ضبط پیام صوتی در مرورگر</li>
-              </ul>
-            </section>
+          {!isStaff && companies.length > 0 && <CompanyGrid companies={companies} />}
+          {settings.status_url && (
+            <a href={settings.status_url} target="_blank" rel="noopener noreferrer" className="card flex items-center gap-3 p-4 transition hover:border-brand/40 hover:shadow-pop">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15"><Activity className="h-5 w-5" /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-bold">{settings.status_label || 'وضعیت سرویس‌ها'}</span>
+                <span className="block text-[11px] text-slate-500">آخرین اختلالات، قطعی‌ها و اطلاعیه‌های فنی</span>
+              </span>
+              <ExternalLink className="h-4 w-4 text-slate-400" />
+            </a>
           )}
           <section className="card p-4">
             <div className="mb-3 flex items-center justify-between">
@@ -137,13 +164,6 @@ export default function DashboardPage() {
               </ul>
             )}
           </section>
-          {settings.working_hours && (
-            <section className="card p-4 text-sm">
-              <h2 className="mb-1 font-bold">ساعات پاسخ‌گویی</h2>
-              <p className="text-slate-500">{settings.working_hours}</p>
-              {settings.support_phone && <p className="mt-2 ltr text-right num text-slate-600 dark:text-slate-300">{faNum(settings.support_phone)}</p>}
-            </section>
-          )}
         </div>
       </div>
     </div>

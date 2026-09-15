@@ -116,7 +116,9 @@ export function TicketSidebar({ ticket, events, customerStats }: Props) {
       <div className="card p-4">
         <h3 className="mb-1 text-sm font-bold">{isStaff ? 'مدیریت تیکت' : 'مشخصات تیکت'}</h3>
         <div className="divide-y divide-slate-100 dark:divide-slate-800">
-          {isStaff && <Row label="شماره"><span className="num ltr inline-flex items-center gap-1 font-mono text-xs"><Hash className="h-3 w-3" />{ticket.number}</span></Row>}
+          <Row label="شماره تیکت"><span className="num inline-flex items-center gap-1 font-mono text-[13px] font-bold text-brand"><Hash className="h-3 w-3" /><bdi dir="ltr">{faNum(ticket.number)}</bdi></span></Row>
+          {!isStaff && <Row label="وضعیت"><StatusBadge status={ticket.status} customerView /></Row>}
+          {!isStaff && <Row label="اولویت"><span className={PRIORITY_META[ticket.priority].color}>{PRIORITY_META[ticket.priority].label}</span></Row>}
           {ticket.company && <Row label="شرکت"><CompanyBadge company={ticket.company} /></Row>}
           {isStaff && <Row label="وضعیت">
             {isStaff ? (
@@ -175,8 +177,8 @@ export function TicketSidebar({ ticket, events, customerStats }: Props) {
               ticket.product || '—'
             )}
           </Row>
-          <Row label="ایجاد"><span title={formatDateTime(ticket.created_at)}>{timeAgo(ticket.created_at)}</span></Row>
-          <Row label="آخرین به‌روزرسانی"><span title={formatDateTime(ticket.updated_at)}>{timeAgo(ticket.updated_at)}</span></Row>
+          <Row label="تاریخ ایجاد"><span className="num text-xs" title={timeAgo(ticket.created_at)}>{formatDateTime(ticket.created_at)}</span></Row>
+          <Row label="آخرین به‌روزرسانی"><span className="num text-xs" title={formatDateTime(ticket.updated_at)}>{timeAgo(ticket.updated_at)}</span></Row>
           {isStaff && ticket.first_response_at && <Row label="اولین پاسخ">{formatMinutes((Date.parse(ticket.first_response_at) - Date.parse(ticket.created_at)) / 60000)} بعد از ثبت</Row>}
           {ticket.resolved_at && <Row label="حل شده">{formatDateTime(ticket.resolved_at)}</Row>}
           {ticket.closed_at && <Row label="بسته شده">{formatDateTime(ticket.closed_at)}</Row>}

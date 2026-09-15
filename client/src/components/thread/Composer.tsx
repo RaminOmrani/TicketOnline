@@ -97,7 +97,9 @@ export function Composer({ ticket, onSent }: Props) {
     ta.style.height = Math.min(260, ta.scrollHeight) + 'px';
   }, [body]);
 
-  const disabled = !isStaff && ticket.status === 'closed' && ticket.closed_at && Date.now() - Date.parse(ticket.closed_at) > (settings.reopen_window_days || 30) * 86400000;
+  // Customers cannot write into a closed ticket (it is final); staff still can.
+  const disabled = !isStaff && ticket.status === 'closed';
+  void settings;
 
   const send = async (statusAfter?: 'resolved' | 'in_progress') => {
     const text = body.trim();
@@ -150,7 +152,7 @@ export function Composer({ ticket, onSent }: Props) {
   };
 
   if (disabled) {
-    return <div className="rounded-2xl border border-dashed border-slate-300 p-4 text-center text-sm text-slate-500 dark:border-slate-700">این تیکت بسته شده و مهلت ارسال پیام آن گذشته است. لطفاً تیکت جدیدی ثبت کنید.</div>;
+    return <div className="rounded-2xl border border-dashed border-slate-300 p-4 text-center text-sm text-slate-500 dark:border-slate-700">این تیکت بسته شده است و امکان ارسال پیام ندارد. لطفاً تیکت جدیدی ثبت کنید.</div>;
   }
 
   return (

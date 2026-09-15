@@ -26,6 +26,8 @@ const fallback: PublicConfig = {
     reopen_window_days: 30,
     otp_login_enabled: true,
     password_login_enabled: true,
+    status_url: '',
+    status_label: '',
   },
   departments: [],
   companies: [],

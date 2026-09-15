@@ -31,9 +31,19 @@ export const config = {
     from: process.env.SMTP_FROM || 'پشتیبانی میلیونر <info@softmiliac.com>',
   },
   sms: {
-    provider: process.env.SMS_PROVIDER || '', // 'kavenegar' | ''
+    provider: process.env.SMS_PROVIDER || '', // 'melipayamak' | 'kavenegar' | ''
     apiKey: process.env.SMS_API_KEY || '',
+    username: process.env.SMS_USERNAME || '',
+    password: process.env.SMS_PASSWORD || '',
     sender: process.env.SMS_SENDER || '',
+    // Pattern (template) ids approved in the SMS panel — see lib/notify.js SMS_TEMPLATES
+    templates: {
+      otp: process.env.SMS_TPL_OTP || '',
+      ticket_created: process.env.SMS_TPL_TICKET_CREATED || '',
+      ticket_reply: process.env.SMS_TPL_TICKET_REPLY || '',
+      ticket_resolved: process.env.SMS_TPL_TICKET_RESOLVED || '',
+      ticket_assigned: process.env.SMS_TPL_TICKET_ASSIGNED || '',
+    },
   },
   trustProxy: process.env.TRUST_PROXY !== 'false',
 };

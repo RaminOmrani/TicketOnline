@@ -54,6 +54,9 @@ function cleanupTemp() {
 function purgeOldNotifications() {
   const cutoff = new Date(Date.now() - 90 * 86400000).toISOString();
   db.prepare('DELETE FROM notifications WHERE created_at < ?').run(cutoff);
+  // Read notifications are only kept for a few minutes (see routes/notifications.js)
+  const readCutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+  db.prepare('DELETE FROM notifications WHERE is_read = 1 AND (read_at IS NULL OR read_at < ?)').run(readCutoff);
   db.prepare("DELETE FROM password_resets WHERE expires_at < ?").run(new Date(Date.now() - 86400000).toISOString());
 }
 
@@ -70,4 +73,9 @@ export function startJobs() {
   };
   setTimeout(run, 10_000);
   setInterval(run, 15 * 60 * 1000);
+  setInterval(() => {
+    try {
+      purgeOldNotifications();
+    } catch {}
+  }, 60 * 1000);
 }

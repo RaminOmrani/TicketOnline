@@ -2,11 +2,30 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import clsx from 'clsx';
-import { BookOpen, Eye, FolderOpen } from 'lucide-react';
+import { BookOpen, Eye, FolderOpen, Clock, HelpCircle } from 'lucide-react';
 import { api } from '@/lib/api';
 import { faNum, timeAgo } from '@/lib/format';
 import { EmptyState, SearchInput, Skeleton } from '@/components/ui';
 import type { KbArticle } from '@/lib/types';
+
+export function ArticleCard({ a }: { a: KbArticle }) {
+  return (
+    <Link to={`/kb/${a.slug}`} className="card flex gap-4 overflow-hidden p-4 transition hover:border-brand/40 hover:shadow-pop">
+      {a.cover_image && <img src={a.cover_image} alt="" className="hidden h-24 w-36 shrink-0 rounded-xl object-cover sm:block" loading="lazy" />}
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-400">
+          {a.category && <span className="chip bg-brand/10 text-brand">{a.category}</span>}
+          {!!a.is_faq && <span className="chip bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300"><HelpCircle className="h-3 w-3" /> سوال متداول</span>}
+          {!a.is_published && <span className="chip bg-slate-100 text-slate-500 dark:bg-slate-800">پیش‌نویس</span>}
+          <span className="inline-flex items-center gap-1"><Eye className="h-3 w-3" />{faNum(a.views)} بازدید</span>
+          <span className="mr-auto inline-flex items-center gap-1"><Clock className="h-3 w-3" />{timeAgo(a.updated_at)}</span>
+        </div>
+        <h3 className="mt-1.5 font-bold leading-7">{a.title}</h3>
+        {a.summary && <p className="mt-0.5 line-clamp-2 text-sm leading-6 text-slate-500">{a.summary}</p>}
+      </div>
+    </Link>
+  );
+}
 
 export default function KbListPage() {
   const [q, setQ] = useState('');
@@ -15,10 +34,15 @@ export default function KbListPage() {
 
   return (
     <div className="mx-auto max-w-5xl">
-      <div className="card mb-5 bg-gradient-to-l from-brand/10 to-transparent p-6">
-        <h1 className="flex items-center gap-2 text-xl font-extrabold"><BookOpen className="h-6 w-6 text-brand" /> راهنما و پایگاه دانش</h1>
-        <p className="mt-1 text-sm text-slate-500">پاسخ سوالات پرتکرار و راهنمای کار با نرم‌افزار را اینجا پیدا کنید.</p>
-        <SearchInput value={q} onChange={setQ} placeholder="جستجو در مقالات…" className="mt-4 max-w-lg" />
+      {/* Header: title/description on the right, search on the left */}
+      <div className="card mb-5 flex flex-col gap-4 bg-gradient-to-l from-brand/10 to-transparent p-6 md:flex-row md:items-center">
+        <div className="min-w-0 flex-1">
+          <h1 className="flex items-center gap-2 text-xl font-extrabold"><BookOpen className="h-6 w-6 text-brand" /> راهنما و پایگاه دانش</h1>
+          <p className="mt-1 text-sm text-slate-500">پاسخ سوالات پرتکرار و راهنمای کار با نرم‌افزار را اینجا پیدا کنید.</p>
+        </div>
+        <div className="w-full md:w-80">
+          <SearchInput value={q} onChange={setQ} placeholder="جستجو در مقالات…" />
+        </div>
       </div>
       <div className="grid gap-5 lg:grid-cols-[220px_1fr]">
         <aside className="card h-fit p-3">
@@ -37,20 +61,7 @@ export default function KbListPage() {
           ) : !data?.items.length ? (
             <div className="card"><EmptyState icon={<BookOpen />} title="مقاله‌ای یافت نشد" description="عبارت دیگری جستجو کنید یا تیکت ثبت کنید." action={<Link to="/tickets/new" className="btn-primary">ثبت تیکت</Link>} /></div>
           ) : (
-            <div className="space-y-3">
-              {data.items.map((a) => (
-                <Link key={a.id} to={`/kb/${a.slug}`} className="card block p-4 transition hover:border-brand/40 hover:shadow-pop">
-                  <div className="flex items-center gap-2 text-[11px] text-slate-400">
-                    {a.category && <span className="chip bg-brand/10 text-brand">{a.category}</span>}
-                    {!a.is_published && <span className="chip bg-amber-100 text-amber-700">پیش‌نویس</span>}
-                    <span className="mr-auto inline-flex items-center gap-1"><Eye className="h-3 w-3" />{faNum(a.views)}</span>
-                    <span>{timeAgo(a.updated_at)}</span>
-                  </div>
-                  <h3 className="mt-1 font-bold">{a.title}</h3>
-                  {a.summary && <p className="mt-1 line-clamp-2 text-sm text-slate-500">{a.summary}</p>}
-                </Link>
-              ))}
-            </div>
+            <div className="space-y-3">{data.items.map((a) => <ArticleCard key={a.id} a={a} />)}</div>
           )}
         </div>
       </div>

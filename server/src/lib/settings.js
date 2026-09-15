@@ -26,6 +26,8 @@ export const DEFAULT_SETTINGS = {
   reopen_window_days: 30,
   otp_login_enabled: true,
   password_login_enabled: true,
+  status_url: '',
+  status_label: 'وضعیت سرویس‌ها و اختلالات',
   notify_new_ticket_all_dept_agents: true,
   sla_priority_multiplier: { low: 2, normal: 1, high: 0.5, urgent: 0.25 },
 };
@@ -75,6 +77,8 @@ export function publicSettings() {
     reopen_window_days: s.reopen_window_days,
     otp_login_enabled: s.otp_login_enabled,
     password_login_enabled: s.password_login_enabled,
+    status_url: s.status_url,
+    status_label: s.status_label,
   };
 }
 
