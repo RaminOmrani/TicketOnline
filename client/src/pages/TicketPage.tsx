@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowRight, Lock, RotateCcw, Info, Trash2, Printer, PlusCircle, Lock as LockIcon } from 'lucide-react';
@@ -66,15 +66,24 @@ export default function TicketPage() {
     }
   }, [lastMsgId, data?.ticket.unread]);
 
-  // Newest first: composer sits on top, latest message right below it.
+  // Chronological: oldest at the top, newest right above the (sticky) composer at the bottom.
   const stream = useMemo(() => {
     if (!data) return [];
     const items: { kind: 'msg' | 'ev'; at: string; m?: Message; e?: TicketEvent }[] = [];
     data.messages.forEach((m) => items.push({ kind: 'msg', at: m.created_at, m }));
     data.events.filter((e) => e.type !== 'created' && e.type !== 'tags_changed').forEach((e) => items.push({ kind: 'ev', at: e.created_at, e }));
-    items.sort((a, b) => b.at.localeCompare(a.at));
+    items.sort((a, b) => a.at.localeCompare(b.at));
     return items;
   }, [data]);
+
+  // Keep the newest message in view: scroll to the bottom on open and whenever a message arrives.
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const msgCount = data?.messages.length || 0;
+  useEffect(() => {
+    if (!msgCount) return;
+    const t = setTimeout(() => bottomRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' }), 80);
+    return () => clearTimeout(t);
+  }, [msgCount, ticketId]);
 
   if (isLoading) return <PageLoader />;
   if (error || !data) return <EmptyState title="تیکت یافت نشد" description={(error as any)?.message} action={<Link to="/tickets" className="btn-primary">بازگشت به تیکت‌ها</Link>} />;
@@ -132,26 +141,7 @@ export default function TicketPage() {
             </div>
           )}
 
-          {/* Composer on top */}
-          <div className="mb-4 no-print">
-            {isCustomer && isClosed ? (
-              <div className="rounded-2xl border border-dashed border-slate-300 p-5 text-center text-sm text-slate-500 dark:border-slate-700">
-                <LockIcon className="mx-auto mb-2 h-6 w-6 text-slate-400" />
-                این تیکت بسته شده است و امکان ارسال پیام ندارد.
-                <div className="mt-3"><Link to={`/tickets/new?company=${ticket.company?.id || ''}&department=${ticket.department.id}`} className="btn-primary btn-sm"><PlusCircle className="h-4 w-4" /> ثبت تیکت جدید</Link></div>
-              </div>
-            ) : (
-              <Composer ticket={ticket} onSent={() => qc.invalidateQueries({ queryKey: ['ticket', ticket.id] })} />
-            )}
-            {typing && (
-              <div className="mt-2 flex items-center gap-2 text-xs text-slate-400 animate-fade-in">
-                <span className="flex gap-0.5"><span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400" /><span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:120ms]" /><span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:240ms]" /></span>
-                {typing.name} در حال نوشتن…
-              </div>
-            )}
-          </div>
-
-          {/* Messages, newest first */}
+          {/* Messages, oldest first */}
           <div className="card space-y-4 p-4 sm:p-6">
             {stream.map((it) => {
               const day = it.at.slice(0, 10);
@@ -177,6 +167,26 @@ export default function TicketPage() {
               );
             })}
           </div>
+          {/* Sticky composer: always visible at the bottom of the window while the thread scrolls */}
+          <div ref={bottomRef} />
+          <div className="sticky bottom-0 z-20 mt-3 rounded-t-2xl bg-slate-50/90 pb-3 pt-2 backdrop-blur no-print dark:bg-[#14171f]/90">
+            {isCustomer && isClosed ? (
+              <div className="rounded-2xl border border-dashed border-slate-300 p-5 text-center text-sm text-slate-500 dark:border-slate-700">
+                <LockIcon className="mx-auto mb-2 h-6 w-6 text-slate-400" />
+                این تیکت بسته شده است و امکان ارسال پیام ندارد.
+                <div className="mt-3"><Link to={`/tickets/new?company=${ticket.company?.id || ''}&department=${ticket.department.id}`} className="btn-primary btn-sm"><PlusCircle className="h-4 w-4" /> ثبت تیکت جدید</Link></div>
+              </div>
+            ) : (
+              <Composer ticket={ticket} onSent={() => qc.invalidateQueries({ queryKey: ['ticket', ticket.id] })} />
+            )}
+            {typing && (
+              <div className="mt-1.5 flex items-center gap-2 text-xs text-slate-400 animate-fade-in">
+                <span className="flex gap-0.5"><span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400" /><span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:120ms]" /><span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:240ms]" /></span>
+                {typing.name} در حال نوشتن…
+              </div>
+            )}
+          </div>
+
         </div>
 
         {/* Sidebar: ticket details (number, company, department, dates…) */}
