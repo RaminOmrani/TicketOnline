@@ -8,6 +8,10 @@ export default {
         sans: ['Vazirmatn', 'Tahoma', 'Segoe UI', 'system-ui', 'sans-serif'],
       },
       colors: {
+        // Greys come from CSS variables so dark mode can switch to a warm, low-glare palette (see index.css)
+        slate: Object.fromEntries(['50', '100', '200', '300', '400', '500', '600', '700', '800', '900', '950'].map((k) => [k, `rgb(var(--slate-${k}) / <alpha-value>)`])),
+        surface: 'rgb(var(--surface-rgb) / <alpha-value>)',
+        page: 'rgb(var(--page-rgb) / <alpha-value>)',
         brand: {
           DEFAULT: 'rgb(var(--brand-rgb) / <alpha-value>)',
           dark: 'rgb(var(--brand-dark-rgb) / <alpha-value>)',

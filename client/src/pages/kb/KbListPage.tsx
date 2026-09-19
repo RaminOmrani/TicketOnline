@@ -54,7 +54,7 @@ export default function KbListPage() {
           <button className={clsx('chip border px-3 py-1.5 text-[13px] transition', !company ? 'border-brand bg-brand text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-brand/50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300')} onClick={() => setCompany(0)}>همه راهنماها</button>
           {data.companies.map((c) => (
             <button key={c.id} className={clsx('chip border px-3 py-1.5 text-[13px] transition', company === c.id ? 'border-brand bg-brand text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-brand/50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300')} onClick={() => setCompany(c.id)}>
-              {c.logo && <img src={c.logo} alt="" className={clsx('h-4 w-auto rounded-sm', company === c.id && 'bg-white/90 px-0.5')} />}
+              {c.logo && <img src={c.logo} alt="" className="logo-well h-4 w-auto rounded-sm px-0.5" />}
               {c.name}
               <span className={clsx('rounded-full px-1.5 text-[10px]', company === c.id ? 'bg-white/20' : 'bg-slate-100 dark:bg-slate-700')}>{faNum(c.c + (data.general || 0))}</span>
             </button>

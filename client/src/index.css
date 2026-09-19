@@ -24,24 +24,93 @@
   --brand-dark-rgb: var(--brand-src-dark-rgb);
   --brand-light-rgb: var(--brand-src-light-rgb);
   --brand-deep-rgb: var(--brand-src-deep-rgb);
+
+  /* Light greys (Tailwind slate) */
+  --slate-50: 248 250 252;
+  --slate-100: 241 245 249;
+  --slate-200: 226 232 240;
+  --slate-300: 203 213 225;
+  --slate-400: 148 163 184;
+  --slate-500: 100 116 139;
+  --slate-600: 71 85 105;
+  --slate-700: 51 65 85;
+  --slate-800: 30 41 59;
+  --slate-900: 15 23 42;
+  --slate-950: 2 6 23;
+  --surface-rgb: 255 255 255;
+  --page-rgb: 248 250 252;
   color-scheme: light;
 }
+
+/* ---------- Dark mode: warm charcoal + coral accent (same mood as aiassist.softmiliac.com) ---------- */
 .dark {
   color-scheme: dark;
+  /* accent: soft coral instead of deep red */
+  --brand-night-rgb: 236 122 122;
+  --brand-night-dark-rgb: 214 104 104;
+  --brand-night-light-rgb: 244 160 160;
   --brand-rgb: var(--brand-night-rgb);
   --brand-dark-rgb: var(--brand-night-dark-rgb);
   --brand-light-rgb: var(--brand-night-light-rgb);
-  --brand-deep-rgb: 30 32 40;
+  --brand-deep-rgb: 46 30 33;
+
+  /* warm greys — under `dark:` the 50–600 steps are only ever used for text (light), 700–950 for surfaces (dark) */
+  --slate-50: 246 241 242;
+  --slate-100: 236 229 231;
+  --slate-200: 216 207 210;
+  --slate-300: 190 180 183;
+  --slate-400: 142 133 136;
+  --slate-500: 162 152 155;
+  --slate-600: 178 168 171;
+  --slate-700: 58 50 53;
+  --slate-800: 38 33 35;
+  --slate-900: 27 23 25;
+  --slate-950: 18 15 16;
+  --surface-rgb: 26 22 24;
+  --page-rgb: 19 16 17;
 }
-/* Dark mode: calm neutral surfaces instead of pitch black */
 .dark body {
-  background-color: #14171f;
-  color: #e2e6ee;
+  color: #ebe4e6;
+  background-color: #131011;
+  background-image: radial-gradient(70% 45% at 50% 0%, rgba(122, 44, 52, 0.42), rgba(122, 44, 52, 0) 70%);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
 }
 .dark .card {
-  background-color: #1c2029;
-  border-color: #2a2f3b;
+  background-color: #1b1719;
+  border-color: #2e2729;
 }
+.dark .btn-primary {
+  color: #1c1416;
+}
+.dark .btn-primary:hover {
+  color: #1c1416;
+}
+/* Own messages: muted maroon bubble instead of a bright block */
+.dark .msg-mine {
+  background-color: #4a262b;
+  color: #f6eaeb;
+}
+.dark .input {
+  background-color: #171315;
+  border-color: #3a3235;
+}
+.dark ::selection {
+  background: rgba(236, 122, 122, 0.35);
+}
+/* Light-only utilities (no dark: twin) remapped so nothing bright leaks into dark mode */
+.dark .bg-white { background-color: #1e1a1c; }
+.dark .bg-slate-50, .dark .bg-slate-50\/80, .dark .bg-slate-50\/90 { background-color: #211c1e; }
+.dark .bg-slate-100 { background-color: #282224; }
+.dark .bg-slate-200, .dark .bg-slate-200\/80 { background-color: #332c2e; }
+.dark .bg-slate-300, .dark .bg-slate-300\/70 { background-color: #3f3639; }
+.dark .hover\:bg-slate-50:hover, .dark .hover\:bg-slate-50\/60:hover, .dark .hover\:bg-slate-100:hover, .dark .hover\:bg-slate-200:hover { background-color: #2d2628; }
+.dark .border-slate-100, .dark .border-slate-200, .dark .border-slate-300, .dark .border-slate-200\/80, .dark .ring-slate-200 { border-color: #302a2c; --tw-ring-color: #302a2c; }
+.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]), .dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]) { border-color: #2a2426; }
+.dark .text-slate-700, .dark .text-slate-800, .dark .text-slate-900 { color: #e8e1e3; }
+.dark .hover\:text-slate-800:hover, .dark .hover\:text-slate-900:hover { color: #ffffff; }
+/* Logos keep a white well so dark-coloured marks stay visible */
+.logo-well { background-color: #ffffff !important; }
 
 html {
   -webkit-text-size-adjust: 100%;
@@ -49,7 +118,7 @@ html {
 }
 
 body {
-  @apply bg-slate-50 text-slate-800 antialiased dark:bg-slate-950 dark:text-slate-100;
+  @apply bg-page text-slate-800 antialiased;
   font-feature-settings: 'ss01', 'tnum';
 }
 

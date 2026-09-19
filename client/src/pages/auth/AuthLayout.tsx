@@ -6,7 +6,7 @@ import { faNum } from '@/lib/format';
 export function AuthLayout({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
   const { settings, companies } = useConfig();
   return (
-    <div className="flex min-h-screen bg-white dark:bg-[#14171f]">
+    <div className="flex min-h-screen bg-white dark:bg-page">
       {/* Brand panel — maroon like the softmiliac.com footer */}
       <div className="relative hidden w-[46%] flex-col justify-between overflow-hidden bg-gradient-to-br from-brand-deep via-[#5a0f0f] to-brand p-10 text-white dark:from-[#241a1c] dark:via-[#3a2427] dark:to-[#5a3033] lg:flex">
         <div className="absolute -left-24 -top-24 h-96 w-96 rounded-full bg-white/5 blur-2xl" />

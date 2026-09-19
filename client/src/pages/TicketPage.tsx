@@ -169,7 +169,7 @@ export default function TicketPage() {
           </div>
           {/* Sticky composer: always visible at the bottom of the window while the thread scrolls */}
           <div ref={bottomRef} />
-          <div className="sticky bottom-0 z-20 mt-3 rounded-t-2xl bg-slate-50/90 pb-3 pt-2 backdrop-blur no-print dark:bg-[#14171f]/90">
+          <div className="sticky bottom-0 z-20 mt-3 rounded-t-2xl bg-slate-50/90 pb-3 pt-2 backdrop-blur no-print dark:bg-page/90">
             {isCustomer && isClosed ? (
               <div className="rounded-2xl border border-dashed border-slate-300 p-5 text-center text-sm text-slate-500 dark:border-slate-700">
                 <LockIcon className="mx-auto mb-2 h-6 w-6 text-slate-400" />

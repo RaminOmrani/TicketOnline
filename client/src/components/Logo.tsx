@@ -34,7 +34,7 @@ export function CompanyBadge({ company, size = 'sm', className }: { company?: { 
   const h = size === 'xs' ? 'h-4' : size === 'sm' ? 'h-5' : 'h-7';
   return (
     <span className={clsx('inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200', className)}>
-      {company.logo ? <img src={company.logo} alt="" className={clsx(h, 'w-auto object-contain')} /> : <LogoMark className={clsx(h, 'w-auto')} color="rgb(var(--brand-rgb))" />}
+      {company.logo ? <img src={company.logo} alt="" className={clsx(h, 'logo-well w-auto rounded object-contain px-0.5')} /> : <LogoMark className={clsx(h, 'w-auto')} color="rgb(var(--brand-rgb))" />}
       {company.name}
     </span>
   );

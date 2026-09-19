@@ -144,7 +144,7 @@ export default function AppShell() {
   return (
     <div className="flex min-h-screen">
       {/* Sidebar (desktop) */}
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-l border-slate-200 bg-white px-3 py-4 dark:border-slate-800 dark:bg-[#1c2029] lg:flex">
+      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-l border-slate-200 bg-white px-3 py-4 dark:border-slate-800 dark:bg-surface lg:flex">
         <div className="mb-6 px-2">
           <Logo />
         </div>
@@ -161,7 +161,7 @@ export default function AppShell() {
       {open && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-slate-900/50" onClick={() => setOpen(false)} />
-          <aside className="absolute right-0 top-0 flex h-full w-72 flex-col bg-white px-3 py-4 shadow-pop dark:bg-[#1c2029] animate-fade-in">
+          <aside className="absolute right-0 top-0 flex h-full w-72 flex-col bg-white px-3 py-4 shadow-pop dark:bg-surface animate-fade-in">
             <div className="mb-6 flex items-center justify-between px-2">
               <Logo />
               <button className="btn-icon" onClick={() => setOpen(false)}>
@@ -175,7 +175,7 @@ export default function AppShell() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Topbar */}
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b border-slate-200/80 bg-white/80 px-4 backdrop-blur dark:border-slate-800 dark:bg-[#1c2029]/85 sm:px-6">
+        <header className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b border-slate-200/80 bg-white/80 px-4 backdrop-blur dark:border-slate-800 dark:bg-surface/85 sm:px-6">
           <button className="btn-icon lg:hidden" onClick={() => setOpen(true)} aria-label="منو">
             <Menu className="h-5 w-5" />
           </button>

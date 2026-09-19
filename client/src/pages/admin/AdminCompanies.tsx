@@ -72,7 +72,7 @@ export default function AdminCompanies() {
           <div key={c.id} className={clsx('card p-4', !c.is_active && 'opacity-60')}>
             <div className="flex items-start gap-3">
               <div className="flex w-28 shrink-0 flex-col items-center gap-1.5">
-                <button className="flex h-16 w-28 items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white p-1.5 dark:border-slate-700 dark:bg-slate-800" title="تغییر لوگو" onClick={() => { setLogoFor(c.id); logoRef.current?.click(); }}>
+                <button className="logo-well flex h-16 w-28 items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white p-1.5 dark:border-slate-700" title="تغییر لوگو" onClick={() => { setLogoFor(c.id); logoRef.current?.click(); }}>
                   {c.logo ? <img src={c.logo} alt="" className="max-h-full max-w-full object-contain" /> : <LogoMark className="h-10 w-10" color={c.color || 'rgb(var(--brand-rgb))'} />}
                 </button>
                 <button className="btn-secondary btn-sm w-full !px-2 !text-[11px]" onClick={() => { setLogoFor(c.id); logoRef.current?.click(); }}><Upload className="h-3.5 w-3.5" /> {c.logo ? 'تغییر لوگو' : 'بارگذاری لوگو'}</button>

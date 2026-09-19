@@ -42,7 +42,7 @@ function CompanyGrid({ companies }: { companies: Company[] }) {
             className={clsx('flex flex-col items-center gap-2 rounded-2xl border p-3 text-center transition hover:border-brand/50 hover:shadow-pop', openId === c.id ? 'border-brand bg-brand/5 ring-4 ring-brand/10' : 'border-slate-200 dark:border-slate-700')}
             style={c.color && openId === c.id ? { borderColor: c.color } : undefined}
           >
-            <span className="flex h-12 w-full items-center justify-center">
+            <span className="logo-well flex h-12 w-full items-center justify-center rounded-xl px-2 dark:bg-white">
               {c.logo ? <img src={c.logo} alt={c.name} className="max-h-12 max-w-[85%] object-contain" /> : <LogoMark className="h-10 w-10" color={c.color || 'rgb(var(--brand-rgb))'} />}
             </span>
             <span className="flex items-center gap-1 text-[13px] font-bold leading-5">

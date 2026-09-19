@@ -33,7 +33,7 @@ export function MessageBubble({ m, onEdit, onDelete }: { m: Message; onEdit?: (m
             isNote
               ? 'border border-amber-200 bg-amber-50 text-slate-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-50'
               : alignEnd
-                ? 'bg-brand text-white rounded-br-md'
+                ? 'msg-mine bg-brand text-white rounded-br-md'
                 : 'border border-slate-200 bg-white text-slate-800 rounded-bl-md dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100'
           )}
         >

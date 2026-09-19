@@ -240,7 +240,7 @@ export default function NewTicketPage() {
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
                 {companies.map((c) => (
                   <button type="button" key={c.id} onClick={() => pickCompany(c.id)} className={clsx('group relative flex items-center gap-4 rounded-2xl border-2 p-5 text-start transition hover:shadow-pop', companyId === c.id ? 'border-brand bg-brand/5' : 'border-slate-200 hover:border-brand/50 dark:border-slate-700')} style={c.color ? ({ '--co': c.color } as any) : undefined}>
-                    <span className="flex h-16 w-24 shrink-0 items-center justify-center rounded-xl bg-white p-2 ring-1 ring-slate-200 dark:ring-slate-700">
+                    <span className="logo-well flex h-16 w-24 shrink-0 items-center justify-center rounded-xl bg-white p-2 ring-1 ring-slate-200 dark:ring-slate-700">
                       {c.logo ? <img src={c.logo} alt={c.name} className="max-h-full max-w-full object-contain" /> : <LogoMark className="h-12 w-12" color={c.color || 'rgb(var(--brand-rgb))'} />}
                     </span>
                     <span className="min-w-0 flex-1">
@@ -266,7 +266,7 @@ export default function NewTicketPage() {
                 </div>
                 {hasCompanyStep && company && (
                   <button type="button" className="btn-secondary btn-sm" onClick={() => setStep('company')}>
-                    {company.logo ? <img src={company.logo} alt="" className="h-4 w-auto" /> : null}
+                    {company.logo ? <img src={company.logo} alt="" className="logo-well h-4 w-auto rounded px-0.5" /> : null}
                     {company.name} <span className="text-brand">· تغییر</span>
                   </button>
                 )}
@@ -387,7 +387,7 @@ export default function NewTicketPage() {
               {error.message && !error.field && <div className="rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{error.message}</div>}
 
               {/* Sticky action bar: stays visible while the form scrolls */}
-              <div className="sticky bottom-0 -mx-5 -mb-5 flex items-center justify-between gap-2 rounded-b-2xl border-t border-slate-100 bg-white/90 px-5 py-3 backdrop-blur dark:border-slate-800 dark:bg-[#1c2029]/90 sm:-mx-7 sm:-mb-7 sm:px-7">
+              <div className="sticky bottom-0 -mx-5 -mb-5 flex items-center justify-between gap-2 rounded-b-2xl border-t border-slate-100 bg-white/90 px-5 py-3 backdrop-blur dark:border-slate-800 dark:bg-surface/90 sm:-mx-7 sm:-mb-7 sm:px-7">
                 <button type="button" className="btn-ghost" onClick={() => setStep(isStaff ? 'dept' : 'faq')} disabled={sending}><ChevronRight className="h-4 w-4" /> مرحله قبل</button>
                 <div className="flex items-center gap-2">
                   <button type="button" className="btn-secondary" onClick={() => navigate(-1)} disabled={sending}>انصراف</button>
@@ -409,7 +409,7 @@ export default function NewTicketPage() {
               {hasCompanyStep && (
                 <div className="flex items-center justify-between gap-2">
                   <dt className="text-slate-500">شرکت</dt>
-                  <dd className="flex items-center gap-1.5 font-medium">{company?.logo && <img src={company.logo} alt="" className="h-4 w-auto" />}{company?.name || <span className="text-slate-400">—</span>}</dd>
+                  <dd className="flex items-center gap-1.5 font-medium">{company?.logo && <img src={company.logo} alt="" className="logo-well h-4 w-auto rounded px-0.5" />}{company?.name || <span className="text-slate-400">—</span>}</dd>
                 </div>
               )}
               <div className="flex items-center justify-between gap-2">
