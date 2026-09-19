@@ -55,36 +55,62 @@
   --brand-deep-rgb: 46 30 33;
 
   /* warm greys — under `dark:` the 50–600 steps are only ever used for text (light), 700–950 for surfaces (dark) */
-  --slate-50: 246 241 242;
-  --slate-100: 236 229 231;
-  --slate-200: 216 207 210;
-  --slate-300: 190 180 183;
-  --slate-400: 142 133 136;
-  --slate-500: 162 152 155;
-  --slate-600: 178 168 171;
-  --slate-700: 58 50 53;
-  --slate-800: 38 33 35;
-  --slate-900: 27 23 25;
-  --slate-950: 18 15 16;
-  --surface-rgb: 26 22 24;
-  --page-rgb: 19 16 17;
+  --slate-50: 250 246 247;
+  --slate-100: 242 236 238;
+  --slate-200: 226 218 221;
+  --slate-300: 206 197 200;
+  --slate-400: 164 154 158;
+  --slate-500: 184 174 178;
+  --slate-600: 200 190 194;
+  --slate-700: 66 56 60;
+  --slate-800: 44 37 40;
+  --slate-900: 31 26 28;
+  --slate-950: 20 16 17;
+  --surface-rgb: 27 22 24;
+  --page-rgb: 18 15 16;
 }
 .dark body {
-  color: #ebe4e6;
-  background-color: #131011;
-  background-image: radial-gradient(70% 45% at 50% 0%, rgba(122, 44, 52, 0.42), rgba(122, 44, 52, 0) 70%);
+  color: #f1eaec;
+  background-color: #120f10;
+  /* red glow that lives across the whole page, not only the top edge */
+  background-image:
+    radial-gradient(60% 40% at 50% -5%, rgba(170, 52, 62, 0.55), rgba(170, 52, 62, 0) 70%),
+    radial-gradient(45% 45% at 0% 45%, rgba(140, 40, 52, 0.30), rgba(140, 40, 52, 0) 70%),
+    radial-gradient(50% 45% at 100% 100%, rgba(150, 44, 56, 0.35), rgba(150, 44, 56, 0) 70%);
   background-attachment: fixed;
   background-repeat: no-repeat;
 }
 .dark .card {
-  background-color: #1b1719;
-  border-color: #2e2729;
+  background-color: rgba(30, 24, 27, 0.92);
+  border-color: rgba(255, 255, 255, 0.07);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 10px 30px -18px rgba(0, 0, 0, 0.7);
 }
+/* Primary actions: coral gradient with white text (readable, matches the aiassist send button) */
 .dark .btn-primary {
-  color: #1c1416;
+  color: #ffffff;
+  background-image: linear-gradient(135deg, #f28c8c 0%, #d95a5a 100%);
+  box-shadow: 0 6px 18px -6px rgba(242, 120, 120, 0.55);
 }
 .dark .btn-primary:hover {
-  color: #1c1416;
+  color: #ffffff;
+  background-image: linear-gradient(135deg, #f79a9a 0%, #e26666 100%);
+}
+.dark .btn-secondary {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #f1eaec;
+}
+.dark .btn-secondary:hover {
+  background-color: rgba(255, 255, 255, 0.09);
+}
+.dark h1,
+.dark h2,
+.dark h3 {
+  color: #fbf6f7;
+}
+.dark .nav-item.active {
+  background-color: rgba(236, 122, 122, 0.14);
+  color: #f7a3a3;
 }
 /* Own messages: muted maroon bubble instead of a bright block */
 .dark .msg-mine {
